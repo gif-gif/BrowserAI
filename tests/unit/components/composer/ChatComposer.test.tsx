@@ -3,6 +3,7 @@ import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ChatComposer } from '../../../../components/composer/ChatComposer';
+import { AppError } from '../../../../shared/errors/app-error';
 
 function ControlledComposer({ onSend = vi.fn(), streaming = false, onStop = vi.fn() }) {
   return (
@@ -704,5 +705,66 @@ describe('ChatComposer', () => {
 
     await user.clear(textbox);
     expect(row).not.toHaveClass('chat-composer__row--multiline');
+  });
+
+  it('opens the AI Writing Assistant from the “+” menu and puts the polished text into the input', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const rewrite = vi.fn(async () => '润色后的文字');
+    render(
+      <ChatComposer
+        value="原始草稿"
+        onChange={onChange}
+        onSend={vi.fn()}
+        model="gpt-test"
+        models={['gpt-test']}
+        writingRewrite={rewrite}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: '添加内容' }));
+    await user.click(screen.getByRole('menuitem', { name: 'AI 写作助手' }));
+    const dialog = await screen.findByRole('dialog', { name: 'AI 写作助手' });
+    const source = within(dialog).getByRole('textbox', { name: '原文' });
+    expect(source).toHaveValue('原始草稿');
+
+    await user.clear(source);
+    await user.type(source, '第一行{Shift>}{Enter}{/Shift}第二行');
+    await user.type(within(dialog).getByRole('textbox', { name: '语境或要求（可选）' }), '写给客户');
+    await user.click(within(dialog).getByRole('button', { name: '开始润色' }));
+
+    expect(await within(dialog).findByText('润色后的文字')).toBeInTheDocument();
+    expect(rewrite).toHaveBeenCalledWith({
+      text: '第一行\n第二行',
+      tone: 'polish',
+      instruction: '写给客户',
+      model: 'gpt-test',
+      locale: 'zh-CN',
+    });
+
+    await user.click(within(dialog).getByRole('button', { name: '填入输入框' }));
+    expect(onChange).toHaveBeenCalledWith('润色后的文字');
+    expect(screen.queryByRole('dialog', { name: 'AI 写作助手' })).not.toBeInTheDocument();
+  });
+
+  it('asks for text before polishing and shows rewrite errors', async () => {
+    const user = userEvent.setup();
+    const rewrite = vi.fn(async () => { throw new AppError('CONFIG_MISSING', 'missing'); });
+    render(<ChatComposer value="" onChange={vi.fn()} onSend={vi.fn()} writingRewrite={rewrite} />);
+
+    await user.click(screen.getByRole('button', { name: '添加内容' }));
+    await user.click(screen.getByRole('menuitem', { name: 'AI 写作助手' }));
+    const dialog = await screen.findByRole('dialog', { name: 'AI 写作助手' });
+
+    await user.click(within(dialog).getByRole('button', { name: '开始润色' }));
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('请先在文本框中输入需要润色的文字。');
+    expect(rewrite).not.toHaveBeenCalled();
+
+    await user.type(within(dialog).getByRole('textbox', { name: '原文' }), 'hello');
+    await user.click(within(dialog).getByRole('button', { name: '开始润色' }));
+    expect(await within(dialog).findByRole('alert')).not.toHaveTextContent('请先在文本框中输入需要润色的文字。');
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

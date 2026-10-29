@@ -8,6 +8,7 @@ import {
 } from '../../entrypoints/sidepanel/utils/tab-mention';
 import { SkillPicker, addSkillOptionId, skillOptionId } from './SkillPicker';
 import { SkillEditorDialog, type SkillDraft } from './SkillEditorDialog';
+import { WritingAssistantDialog, type WritingRequest } from './WritingAssistantDialog';
 import { filterSkills } from '../../shared/skills/skill-store';
 import type { Skill } from '../../shared/types/skill';
 import type { ShortcutButton } from './QuickActions';
@@ -56,6 +57,8 @@ interface ChatComposerProps {
   newChatShortcutsDisabled?: boolean;
   /** Opens the general settings from “+” → Shortcuts → Manage shortcuts. */
   onManageNewChatShortcuts?: () => void;
+  /** Overrides the background request behind “+” → AI Writing Assistant; for tests. */
+  writingRewrite?: (request: WritingRequest) => Promise<string>;
 }
 
 export interface TabMentionOptions {
@@ -182,6 +185,15 @@ function BoltIcon() {
   return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11.2 2.5 4.8 11h4.6l-1 6.5L15.2 9h-4.6l.6-6.5Z" /></svg>;
 }
 
+function WritingIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <path d="m13.6 6.4 1.8 1.8-7.7 7.7-2.6.8.8-2.6 7.7-7.7Z" />
+      <path d="M6 2.5v3M4.5 4h3M15 12.5v2.5M13.75 13.75h2.5" />
+    </svg>
+  );
+}
+
 function ExternalLinkIcon() {
   return (
     <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -225,6 +237,7 @@ export function ChatComposer({
   newChatShortcuts,
   newChatShortcutsDisabled = false,
   onManageNewChatShortcuts,
+  writingRewrite,
 }: ChatComposerProps) {
   const { messages } = useI18n();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -260,6 +273,7 @@ export function ChatComposer({
   const skillRowCount = skillCandidates.length + (onSaveSkill ? 1 : 0);
   const activeSkillRow = Math.min(activeSkillIndex, Math.max(0, skillRowCount - 1));
   const [skillEditor, setSkillEditor] = useState<SkillDraft>();
+  const [writingOpen, setWritingOpen] = useState(false);
   // The “/query” the editor was opened from: a new skill replaces it, otherwise the picker reopens.
   const pendingSkillQueryRef = useRef<MentionQuery | undefined>(undefined);
   const menuTabs = menuTabsFrom(menuTabList);
@@ -816,7 +830,7 @@ export function ChatComposer({
                     <span className="composer-menu__label">{messages.pageActions}</span>
                     {pageActionsEnabled ? <span className="composer-menu__trail composer-menu__trail--check" aria-hidden="true"><CheckCircleIcon /></span> : null}
                   </button>
-                  {newChatShortcuts || onSelectSkill ? <div className="composer-menu__divider" role="separator" /> : null}
+                  <div className="composer-menu__divider" role="separator" />
                   {newChatShortcuts ? (
                     <button
                       type="button"
@@ -830,6 +844,19 @@ export function ChatComposer({
                       <span className="composer-menu__trail" aria-hidden="true"><ChevronRightIcon /></span>
                     </button>
                   ) : null}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="composer-menu__item"
+                    aria-haspopup="dialog"
+                    onClick={() => {
+                      closeToolsMenu();
+                      setWritingOpen(true);
+                    }}
+                  >
+                    <span className="composer-menu__icon" aria-hidden="true"><WritingIcon /></span>
+                    <span className="composer-menu__label">{messages.writingAssistantMenu}</span>
+                  </button>
                   {onSelectSkill ? (
                     <>
                       <button
@@ -940,6 +967,18 @@ export function ChatComposer({
           onSave={saveSkill}
           onDelete={onDeleteSkill ? deleteSkill : undefined}
           onClose={closeSkillEditor}
+        />
+      ) : null}
+      {writingOpen ? (
+        <WritingAssistantDialog
+          initialText={value}
+          model={models.includes(model) ? model : undefined}
+          rewrite={writingRewrite}
+          onUse={(text) => {
+            onChange(text);
+            textareaRef.current?.focus();
+          }}
+          onClose={() => setWritingOpen(false)}
         />
       ) : null}
     </>

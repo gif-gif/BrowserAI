@@ -547,6 +547,11 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .skill-dialog__actions .skill-dialog__save:hover:not(:disabled) { background: var(--blue-hover); }
 .skill-dialog__actions .skill-dialog__delete { margin-right: auto; color: var(--danger); }
 .skill-dialog__actions .skill-dialog__delete:hover:not(:disabled) { background: var(--danger-soft); }
+.writing-dialog__description { margin: -6px 0 0; color: var(--muted); font-size: 12px; }
+.writing-dialog__result { display: grid; gap: 6px; padding: 12px; border-radius: 12px; background: var(--blue-soft); }
+.writing-dialog__result h3 { margin: 0; color: var(--muted-strong); font-size: 12px; font-weight: 600; }
+.writing-dialog__result p { margin: 0; max-height: 220px; overflow-y: auto; color: var(--ink); font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.skill-dialog__actions .writing-dialog__copy { margin-right: auto; }
 
 .streaming-indicator__dots { display: inline-flex; align-items: center; gap: 3px; }
 .streaming-indicator__dots i { width: 4px; height: 4px; border-radius: 50%; background: var(--blue); animation: stream-pulse 1.2s ease-in-out infinite; }

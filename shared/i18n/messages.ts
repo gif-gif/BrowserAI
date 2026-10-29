@@ -354,6 +354,9 @@ export interface AppMessages {
   writingAssistantAutoShow: string;
   writingAssistantAutoShowDescription: string;
   writingAssistantSettingError: string;
+  writingAssistantMenu: string;
+  writingAssistantInputPlaceholder: string;
+  writingAssistantUseInComposer: string;
   newChatShortcuts: string;
   newChatShortcutsDescription: string;
   newChatShortcutSlot: (position: number) => string;
