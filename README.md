@@ -4,6 +4,10 @@
 
 项目使用 React、TypeScript、WXT，以及 OpenAI 和 Anthropic 的官方 JavaScript SDK。API 请求只从扩展 Background Service Worker 发出，页面脚本无法读取 Gateway 密钥。
 
+![在侧边栏中针对当前网页提问](docs/images/sidepanel-chat.png)
+
+![连接自己的 AI Gateway](docs/images/settings-gateway.png)
+
 ## 功能
 
 ### 对话
