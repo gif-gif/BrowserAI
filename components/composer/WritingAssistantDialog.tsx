@@ -131,8 +131,9 @@ export function WritingAssistantDialog({ initialText = '', model, onUse, onClose
           <textarea
             id={textId}
             ref={textRef}
+            className="writing-dialog__input"
             value={text}
-            rows={6}
+            rows={3}
             maxLength={MAX_TEXT_LENGTH}
             placeholder={messages.writingAssistantInputPlaceholder}
             readOnly={generating}
