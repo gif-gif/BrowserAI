@@ -628,6 +628,7 @@ export function startBackground(
     initializeStorage(),
     clearContextMenus,
     sidePanels.disableDefault(),
+    services.pageAccess.restoreAllSites().catch(() => undefined),
     alarms.ready,
   ]).then(() => undefined);
 

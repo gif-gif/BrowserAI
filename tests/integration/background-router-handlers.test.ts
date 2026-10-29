@@ -90,6 +90,7 @@ function createServices(): BackgroundServices {
     pageAccess: {
       getPagePolicy: vi.fn(async () => ({ supported: true, excluded: true, automatic: false, selectionActionEnabled: false, pageContextAllowed: false, canAllowOnce: true, reason: 'denylisted' })),
       allowOnce: vi.fn(async () => true),
+      restoreAllSites: vi.fn(async () => false),
     },
     snapshots: { store: vi.fn(), current: vi.fn(), invalidate: vi.fn(), remove: vi.fn(), requireCurrent: vi.fn(), require: vi.fn(), attachSelection: vi.fn(), syncSelection: vi.fn() },
     sessions: {
@@ -124,6 +125,7 @@ describe('background lifecycle and router handlers', () => {
     expect(migrate).toHaveBeenCalledWith(services.storage);
     expect(reconcile).toHaveBeenCalledWith(services.conversations);
     expect(services.retention.cleanup).toHaveBeenCalled();
+    expect(services.pageAccess.restoreAllSites).toHaveBeenCalledTimes(1);
     expect(migrate.mock.invocationCallOrder[0]).toBeLessThan(reconcile.mock.invocationCallOrder[0]!);
     expect(browser.alarms.get).toHaveBeenCalledWith('chrome-ai-daily-cleanup');
     expect(browser.alarms.create).toHaveBeenCalledWith('chrome-ai-daily-cleanup', { periodInMinutes: 1440 });

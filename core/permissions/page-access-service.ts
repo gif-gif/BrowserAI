@@ -1,4 +1,5 @@
 import type {
+  DynamicContentScript,
   DynamicScriptingApi,
   OriginPermissionsApi,
   PageAccessPolicy,
@@ -8,6 +9,13 @@ import { matchesSitePattern } from './site-pattern';
 
 export const ALL_SITES_ORIGINS = ['http://*/*', 'https://*/*'];
 export const ALL_SITES_SCRIPT_ID = 'chrome-ai-all-sites';
+const ALL_SITES_SCRIPT = {
+  id: ALL_SITES_SCRIPT_ID,
+  matches: ALL_SITES_ORIGINS,
+  js: ['content-scripts/content.js'],
+  runAt: 'document_idle',
+  persistAcrossSessions: true,
+} as const satisfies DynamicContentScript;
 
 function supportedPageOrigin(url: string): string | undefined {
   let parsed: URL;
@@ -40,17 +48,35 @@ export class PageAccessService {
     const registeredScripts = await this.scripting.getRegisteredContentScripts?.();
     const alreadyRegistered = registeredScripts?.some(({ id }) => id === ALL_SITES_SCRIPT_ID) ?? false;
     if (!alreadyRegistered) {
-      await this.scripting.registerContentScripts([{
-        id: ALL_SITES_SCRIPT_ID,
-        matches: ALL_SITES_ORIGINS,
-        js: ['content-scripts/content.js'],
-        runAt: 'document_idle',
-        persistAcrossSessions: true,
-      }]);
+      await this.scripting.registerContentScripts([ALL_SITES_SCRIPT]);
     }
     this.registeredAllSites = true;
     await this.updatePreferences({ pageAccessMode: 'all-sites' });
     return { granted: true, registered: !alreadyRegistered };
+  }
+
+  /**
+   * Chrome drops dynamically registered content scripts when the extension is
+   * reloaded or updated, while the saved all-sites preference survives. Put the
+   * registration back on service worker start so page features (such as the
+   * writing assistant launcher) load on refresh without opening the side panel.
+   * Never requests a permission: a revoked grant falls back to activeTab.
+   */
+  async restoreAllSites(): Promise<boolean> {
+    const preferences = await this.preferences?.get();
+    if (preferences?.pageAccessMode !== 'all-sites') return false;
+    if (!await this.permissions.contains({ origins: ALL_SITES_ORIGINS })) {
+      await this.updatePreferences({ pageAccessMode: 'active-tab' });
+      return false;
+    }
+    const registeredScripts = await this.scripting.getRegisteredContentScripts?.();
+    if (registeredScripts?.some(({ id }) => id === ALL_SITES_SCRIPT_ID)) {
+      this.registeredAllSites = true;
+      return false;
+    }
+    await this.scripting.registerContentScripts([ALL_SITES_SCRIPT]);
+    this.registeredAllSites = true;
+    return true;
   }
 
   async disableAllSites(
