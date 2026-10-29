@@ -1,0 +1,5 @@
+{
+  "extensionName": { "message": "Browser AI" },
+  "extensionDescription": { "message": "Chat with your own AI Gateway (OpenAI-compatible or Anthropic Messages) in the Chrome side panel, using the page as context." },
+  "actionTitle": { "message": "Ask AI" }
+}

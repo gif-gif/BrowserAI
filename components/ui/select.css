@@ -1,0 +1,80 @@
+/* Shared custom select (side panel + options). Colors come from each page's tokens, with fallbacks for tokens only one page defines. */
+.ui-select { position: relative; min-width: 0; display: grid; gap: 6px; }
+.ui-select__label { color: var(--muted); font-size: 12px; font-weight: 650; }
+.ui-select__trigger {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--ui-select-height, 40px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--control-border, #c8cdd5);
+  border-radius: var(--ui-select-radius, 12px);
+  outline: 0;
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(60, 64, 67, .05);
+  font: inherit;
+  font-size: var(--ui-select-font-size, 13px);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+.ui-select__trigger:hover:not(:disabled) { border-color: var(--control-border-hover, #9aa0a6); background: var(--control-bg-hover, #f8fafd); }
+.ui-select__trigger:focus-visible,
+.ui-select--open .ui-select__trigger { border-color: var(--blue); background: var(--surface); box-shadow: 0 0 0 3px var(--focus-ring); }
+.ui-select__trigger:active:not(:disabled) { background: var(--blue-soft); }
+.ui-select__trigger:disabled { cursor: not-allowed; opacity: .6; }
+.ui-select__value { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-select__chevron { flex: 0 0 auto; display: grid; place-items: center; color: var(--muted); transition: transform 180ms ease, color 160ms ease; }
+.ui-select--open .ui-select__chevron { color: var(--blue); transform: rotate(180deg); }
+.ui-select__chevron svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ui-select__menu {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  min-width: 160px;
+  display: grid;
+  align-content: start;
+  gap: 1px;
+  padding: 5px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line-soft, var(--line));
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgba(30, 34, 45, .16), 0 2px 8px rgba(30, 34, 45, .06);
+  transform-origin: top center;
+  animation: ui-select-open 150ms cubic-bezier(.2, 0, 0, 1);
+}
+.ui-select__menu--up { top: auto; bottom: calc(100% + 6px); transform-origin: bottom center; animation-name: ui-select-open-up; }
+@keyframes ui-select-open { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes ui-select-open-up { from { opacity: 0; transform: translateY(4px) scale(.98); } to { opacity: 1; transform: none; } }
+.ui-select__group { padding: 8px 10px 4px; color: var(--muted); font-size: 11px; font-weight: 650; letter-spacing: .02em; }
+.ui-select__group:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--line-soft, var(--line)); }
+.ui-select__option {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  color: var(--ink);
+  font-size: var(--ui-select-font-size, 13px);
+  cursor: pointer;
+  transition: background-color 100ms ease;
+}
+.ui-select__option--active { background: var(--control-bg-hover, #f1f5fb); }
+.ui-select__option[aria-selected="true"] { color: var(--blue); background: var(--blue-soft); font-weight: 650; }
+.ui-select__option--active[aria-selected="true"] { background: color-mix(in srgb, var(--blue) 14%, var(--surface)); }
+.ui-select__option-label { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-select__check { width: 16px; height: 16px; flex: 0 0 16px; display: grid; place-items: center; }
+.ui-select__check svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+@media (prefers-reduced-motion: reduce) {
+  .ui-select__menu { animation: none; }
+  .ui-select__chevron, .ui-select__trigger, .ui-select__option { transition: none; }
+}

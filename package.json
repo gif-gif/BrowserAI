@@ -1,0 +1,50 @@
+{
+  "name": "browser-ai",
+  "description": "Gemini-inspired Chrome Side Panel for OpenAI-compatible AI Gateways",
+  "private": true,
+  "license": "MIT",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "prepare": "wxt prepare",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run typecheck && npm run lint && npm test && npm run build"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "1.3.0",
+    "@mdgate/doc": "^0.6.25",
+    "@mdgate/docx": "^0.6.25",
+    "@mdgate/pdf": "^0.6.25",
+    "@mdgate/xlsx": "^0.6.25",
+    "@mozilla/readability": "latest",
+    "openai": "7.4.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-markdown": "latest",
+    "remark-gfm": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@eslint/js": "latest",
+    "@testing-library/jest-dom": "latest",
+    "@testing-library/react": "latest",
+    "@testing-library/user-event": "latest",
+    "@types/jsdom": "^28.0.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@wxt-dev/module-react": "^1.1.5",
+    "eslint": "latest",
+    "jsdom": "29.1.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "latest",
+    "vitest": "latest",
+    "web-ext": "^10.5.0",
+    "wxt": "^0.21.3"
+  }
+}

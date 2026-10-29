@@ -1,0 +1,5 @@
+{
+  "extensionName": { "message": "Browser AI" },
+  "extensionDescription": { "message": "在 Chrome 側邊欄中連接你自己的 AI Gateway（OpenAI 相容或 Anthropic Messages），結合目前網頁提問。" },
+  "actionTitle": { "message": "问问 AI" }
+}

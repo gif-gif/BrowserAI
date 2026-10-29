@@ -1,0 +1,4 @@
+{"id":"chatcmpl-mvp","object":"chat.completion.chunk","created":1,"model":"gpt-test","choices":[{"index":0,"delta":{"content":"页面"},"finish_reason":null}]}
+{"id":"chatcmpl-mvp","object":"chat.completion.chunk","created":1,"model":"gpt-test","choices":[{"index":0,"delta":{"content":"摘要"},"finish_reason":null}]}
+{"id":"chatcmpl-mvp","object":"chat.completion.chunk","created":1,"model":"gpt-test","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+{"id":"chatcmpl-mvp","object":"chat.completion.chunk","created":1,"model":"gpt-test","choices":[],"usage":{"prompt_tokens":24,"completion_tokens":4,"total_tokens":28}}
