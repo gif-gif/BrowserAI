@@ -1,5 +1,7 @@
 # Browser AI
 
+**简体中文** | [繁體中文](README.zh-TW.md) | [English](README.en.md)
+
 一个参考 Chrome「问问 Gemini」交互方式实现的 Manifest V3 扩展。它在 Chrome Side Panel 中提供 AI 对话，并可按需结合当前页面、其他标签页、选中文本、截图和文件，通过 OpenAI-compatible 或 Anthropic Messages 格式的 Gateway 流式生成回答。
 
 项目使用 React、TypeScript、WXT，以及 OpenAI 和 Anthropic 的官方 JavaScript SDK。API 请求只从扩展 Background Service Worker 发出，页面脚本无法读取 Gateway 密钥。
