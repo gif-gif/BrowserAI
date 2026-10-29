@@ -102,6 +102,8 @@ describe('TextareaWritingAssistant', () => {
       expect(style).toContain('grid-template-columns: 36px minmax(0, 1fr) 40px');
       expect(style).toContain('overflow-wrap: anywhere');
       expect(style).toContain('-webkit-line-clamp: 2');
+      // Both dropdown menus are absolutely positioned and need a positioned wrapper to anchor under their trigger.
+      expect(style).toContain('.model-picker-wrap, .tone-picker-wrap { position: relative; }');
     } finally {
       assistant.stop();
     }

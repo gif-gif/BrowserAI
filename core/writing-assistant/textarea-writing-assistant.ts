@@ -287,7 +287,7 @@ const STYLE = `
   .copy-button[data-copied="true"] { color: var(--ai-accent); background: var(--ai-accent-soft); }
   .picker-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 10px 22px 12px; }
   .model-section, .tone-section { min-width: 0; }
-  .model-picker-wrap { position: relative; }
+  .model-picker-wrap, .tone-picker-wrap { position: relative; }
   .model-trigger, .tone-trigger {
     width: 100%;
     height: 40px;
