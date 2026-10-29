@@ -147,8 +147,8 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
           />
         </div>
         <div className="writing-dialog__row">
-          <Select<WritingTone> label={messages.writingAssistantTone} value={tone} options={toneOptions} disabled={generating} onChange={setTone} />
-          <Select label={messages.model} value={selectedModel} options={modelOptions} disabled={generating} onChange={setSelectedModel} />
+          <Select<WritingTone> ariaLabel={messages.writingAssistantTone} value={tone} options={toneOptions} disabled={generating} onChange={setTone} />
+          <Select ariaLabel={messages.model} value={selectedModel} options={modelOptions} disabled={generating} onChange={setSelectedModel} />
         </div>
         <label className="skill-dialog__field">
           <span>{messages.writingAssistantContext}</span>
