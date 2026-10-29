@@ -31,19 +31,16 @@
 .ui-select__chevron { flex: 0 0 auto; display: grid; place-items: center; color: var(--muted); transition: transform 180ms ease, color 160ms ease; }
 .ui-select--open .ui-select__chevron { color: var(--blue); transform: rotate(180deg); }
 .ui-select__chevron svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* Portaled to <body> with fixed coordinates from Select.tsx, so it sits above dialogs (z-index 60) and is never clipped. */
 .ui-select__menu {
-  position: absolute;
-  z-index: 40;
-  top: calc(100% + 6px);
-  right: 0;
-  left: 0;
-  min-width: 160px;
-  display: grid;
-  align-content: start;
-  gap: 1px;
+  position: fixed;
+  z-index: 1000;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   padding: 5px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow: hidden;
   border: 1px solid var(--line-soft, var(--line));
   border-radius: 14px;
   background: var(--surface);
@@ -51,7 +48,23 @@
   transform-origin: top center;
   animation: ui-select-open 150ms cubic-bezier(.2, 0, 0, 1);
 }
-.ui-select__menu--up { top: auto; bottom: calc(100% + 6px); transform-origin: bottom center; animation-name: ui-select-open-up; }
+.ui-select__menu--up { transform-origin: bottom center; animation-name: ui-select-open-up; }
+.ui-select__list { min-height: 0; flex: 1 1 auto; display: grid; align-content: start; gap: 1px; overflow-y: auto; overscroll-behavior: contain; }
+.ui-select__search {
+  height: 32px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 9px;
+  border-radius: 9px;
+  color: var(--muted);
+  background: var(--control-bg-hover, #f1f5fb);
+}
+.ui-select__search svg { width: 14px; height: 14px; flex: 0 0 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.ui-select__search input { min-width: 0; flex: 1 1 auto; height: 100%; margin: 0; padding: 0; border: 0; outline: 0; color: var(--ink); background: transparent; font: inherit; font-size: var(--ui-select-font-size, 13px); }
+.ui-select__search input::-webkit-search-cancel-button { cursor: pointer; }
+.ui-select__empty { margin: 0; padding: 8px 10px; color: var(--muted); font-size: 12px; }
 @keyframes ui-select-open { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
 @keyframes ui-select-open-up { from { opacity: 0; transform: translateY(4px) scale(.98); } to { opacity: 1; transform: none; } }
 .ui-select__group { padding: 8px 10px 4px; color: var(--muted); font-size: 11px; font-weight: 650; letter-spacing: .02em; }

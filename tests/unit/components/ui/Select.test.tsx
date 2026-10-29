@@ -89,4 +89,53 @@ describe('Select', () => {
     expect(onDocumentEscape).not.toHaveBeenCalled();
     document.removeEventListener('keydown', onDocumentEscape);
   });
+
+  it('renders the menu outside clipping containers with fixed coordinates', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<div style={{ overflow: 'hidden' }}><Select label="Format" value="a" options={options} onChange={vi.fn()} /></div>);
+
+    await user.click(screen.getByRole('combobox', { name: 'Format' }));
+    const listbox = screen.getByRole('listbox', { name: 'Format' });
+    expect(container).not.toContainElement(listbox);
+    expect(listbox.parentElement).toHaveStyle({ top: '6px' });
+  });
+
+  it('filters options with the search box and picks the match with Enter', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const onDocumentEscape = vi.fn((event: KeyboardEvent) => event.key === 'Escape');
+    document.addEventListener('keydown', onDocumentEscape);
+    render(
+      <Select
+        ariaLabel="Model"
+        value="a"
+        options={[...options, { value: 'c', label: 'Gamma' }]}
+        search={{ placeholder: 'Search models', noMatch: 'No matching models' }}
+        onChange={onChange}
+      />,
+    );
+
+    await user.click(screen.getByRole('combobox', { name: 'Model' }));
+    const searchBox = screen.getByRole('combobox', { name: 'Search models' });
+    expect(searchBox).toHaveFocus();
+
+    await user.type(searchBox, 'zzz');
+    expect(screen.queryAllByRole('option')).toHaveLength(0);
+    expect(screen.getByText('No matching models')).toBeInTheDocument();
+
+    await user.clear(searchBox);
+    await user.type(searchBox, 'option b');
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['Option B']);
+    await user.keyboard('{Enter}');
+    expect(onChange).toHaveBeenCalledWith('b');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Model' })).toHaveFocus();
+
+    await user.click(screen.getByRole('combobox', { name: 'Model' }));
+    expect(screen.getByRole('combobox', { name: 'Search models' })).toHaveValue('');
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(onDocumentEscape.mock.results.some((result) => result.value === true)).toBe(false);
+    document.removeEventListener('keydown', onDocumentEscape);
+  });
 });
