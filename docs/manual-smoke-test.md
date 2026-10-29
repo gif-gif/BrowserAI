@@ -284,7 +284,7 @@
 
 ## 7. 视觉与无障碍 QA
 
-基于 `chrome-ai-wireframe.svg` 和 `ui-ux-pro-max` 约束，在 280、320、360、420 像素 Side Panel 宽度检查：
+在 280、320、360、420 像素 Side Panel 宽度检查：
 
 - 顶部品牌、历史和新建按钮层级清晰；
 - 对话区独立滚动，Composer 固定在底部且不遮挡消息；
@@ -434,7 +434,7 @@
 
 ## 7. 视觉与无障碍 QA
 
-基于 `chrome-ai-wireframe.svg` 和 `ui-ux-pro-max` 约束，在 280、320、360、420 像素 Side Panel 宽度检查：
+在 280、320、360、420 像素 Side Panel 宽度检查：
 
 - 顶部品牌、历史和新建按钮层级清晰；
 - 对话区独立滚动，Composer 固定在底部且不遮挡消息；
