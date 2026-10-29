@@ -602,7 +602,7 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
 .skill-dialog__actions .skill-dialog__delete { margin-right: auto; color: var(--danger); }
 .skill-dialog__actions .skill-dialog__delete:hover:not(:disabled) { background: var(--danger-soft); }
 
-/* 通用 → 新会话快捷方式 */
+/* 通用 → 快捷方式 */
 .new-chat-shortcut-settings {
   margin-bottom: 18px;
   display: grid;

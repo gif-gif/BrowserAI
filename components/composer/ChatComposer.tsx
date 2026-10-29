@@ -51,10 +51,10 @@ interface ChatComposerProps {
   onDeleteSkill?: (id: string) => Promise<void> | void;
   /** Opens the skill settings from “+” → Skills → Manage skills. */
   onManageSkills?: () => void;
-  /** New chat shortcuts chosen in settings, offered under “+” → New chat shortcuts. */
+  /** New chat shortcuts chosen in settings, offered under “+” → Shortcuts. */
   newChatShortcuts?: ShortcutButton[];
   newChatShortcutsDisabled?: boolean;
-  /** Opens the general settings from “+” → New chat shortcuts → Manage shortcuts. */
+  /** Opens the general settings from “+” → Shortcuts → Manage shortcuts. */
   onManageNewChatShortcuts?: () => void;
 }
 
@@ -826,7 +826,7 @@ export function ChatComposer({
                       onClick={() => setMenuView('shortcuts')}
                     >
                       <span className="composer-menu__icon" aria-hidden="true"><BoltIcon /></span>
-                      <span className="composer-menu__label">{messages.composerShortcutsMenu}</span>
+                      <span className="composer-menu__label">{messages.newChatShortcuts}</span>
                       <span className="composer-menu__trail" aria-hidden="true"><ChevronRightIcon /></span>
                     </button>
                   ) : null}

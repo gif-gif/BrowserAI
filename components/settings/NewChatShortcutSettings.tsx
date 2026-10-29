@@ -18,7 +18,7 @@ function parseShortcut(value: string): NewChatShortcut | undefined {
   return undefined;
 }
 
-/** 通用 → 新会话快捷方式: pick the buttons shown at the bottom left of a new conversation. */
+/** 通用 → 快捷方式: pick the buttons shown at the bottom left of a new conversation. */
 export function NewChatShortcutSettings({ skills: initialSkills, shortcuts: initialShortcuts }: { skills?: Skill[]; shortcuts?: NewChatShortcut[] }) {
   const { messages } = useI18n();
   const { skills } = useSkills(initialSkills);
