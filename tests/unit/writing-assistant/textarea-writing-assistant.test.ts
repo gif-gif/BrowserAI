@@ -887,6 +887,51 @@ describe('TextareaWritingAssistant', () => {
     assistant.stop();
   });
 
+  it('scrolls the open model list instead of the panel content with the mouse wheel', () => {
+    const assistant = new TextareaWritingAssistant({
+      document,
+      window,
+      messages: zhCN,
+      requestRewrite: vi.fn(),
+    });
+    assistant.start();
+    const textarea = document.createElement('textarea');
+    textarea.value = '需要润色的长内容';
+    textarea.getBoundingClientRect = rect;
+    document.body.append(textarea);
+    textarea.focus();
+
+    const elements = shadowElements();
+    elements.launcher.click();
+    Object.defineProperty(elements.content, 'scrollHeight', { configurable: true, value: 1_200 });
+    Object.defineProperty(elements.content, 'clientHeight', { configurable: true, value: 300 });
+    elements.content.scrollTop = 40;
+    const modelList = elements.modelPopover.querySelector<HTMLElement>('.model-list')!;
+    Object.defineProperty(modelList, 'scrollHeight', { configurable: true, value: 600 });
+    Object.defineProperty(modelList, 'clientHeight', { configurable: true, value: 220 });
+    // jsdom does not resolve shadow-root stylesheets; report the list's real overflow-y: auto.
+    const realGetComputedStyle = window.getComputedStyle.bind(window);
+    const computedStyle = vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) => (
+      element === modelList ? ({ overflowY: 'auto' } as CSSStyleDeclaration) : realGetComputedStyle(element, pseudo)
+    ));
+
+    const scrollList = (deltaY: number) => {
+      const wheel = new WheelEvent('wheel', { bubbles: true, cancelable: true, composed: true, deltaY });
+      modelList.dispatchEvent(wheel);
+      return wheel;
+    };
+
+    expect(scrollList(160).defaultPrevented).toBe(true);
+    expect(modelList.scrollTop).toBe(160);
+    // At the end of the list the wheel stays contained and does not move the panel.
+    scrollList(1_000);
+    expect(modelList.scrollTop).toBe(380);
+    expect(elements.content.scrollTop).toBe(40);
+
+    computedStyle.mockRestore();
+    assistant.stop();
+  });
+
   it('shows a check icon for two seconds after copying a rewrite result', async () => {
     const requestRewrite = vi.fn(async () => ({ text: '润色后的结果' }));
     const writeText = vi.fn(async () => undefined);

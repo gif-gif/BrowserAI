@@ -1340,27 +1340,43 @@ export class TextareaWritingAssistant {
     const path = event.composedPath();
     if (!path.includes(this.panel)) return;
 
-    const maxScrollTop = Math.max(0, this.content.scrollHeight - this.content.clientHeight);
-    if (maxScrollTop <= 0 || event.deltaY === 0) return;
+    if (event.deltaY === 0) return;
+
+    // Nested scrollers (the model list, long source/result previews) take the
+    // wheel first, like overscroll-behavior: contain. Without this the window
+    // handler below would always move the outer content instead.
+    const scroller = this.findNestedScroller(path) ?? this.content;
+    const maxScrollTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+    if (maxScrollTop <= 0 && scroller === this.content) return;
 
     const multiplier = event.deltaMode === 1
       ? 18
       : event.deltaMode === 2
-        ? Math.max(1, this.content.clientHeight)
+        ? Math.max(1, scroller.clientHeight)
         : 1;
     const nextScrollTop = Math.max(
       0,
-      Math.min(maxScrollTop, this.content.scrollTop + event.deltaY * multiplier),
+      Math.min(maxScrollTop, scroller.scrollTop + event.deltaY * multiplier),
     );
 
     // The assistant can be mounted inside a page-owned dialog whose global
     // wheel handler locks scrolling. Handle the wheel at window capture level
     // so long rewrite results remain scrollable without moving the page behind
     // the assistant.
-    this.content.scrollTop = nextScrollTop;
+    scroller.scrollTop = nextScrollTop;
     event.preventDefault();
     event.stopImmediatePropagation();
   };
+
+  private findNestedScroller(path: EventTarget[]): HTMLElement | undefined {
+    for (const node of path) {
+      if (node === this.content || node === this.panel) return undefined;
+      if (!(node instanceof HTMLElement) || node.scrollHeight <= node.clientHeight) continue;
+      const overflowY = this.options.window.getComputedStyle(node).overflowY;
+      if (overflowY === 'auto' || overflowY === 'scroll') return node;
+    }
+    return undefined;
+  }
 
   private readonly reposition = (event?: Event): void => {
     // The window listener runs in capture mode so it can follow page-owned
