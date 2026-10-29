@@ -313,13 +313,15 @@ const STYLE = `
   .model-trigger-chevron svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 160ms ease; }
   .model-trigger[aria-expanded="true"] .model-trigger-chevron svg { transform: rotate(180deg); }
   .model-trigger-value { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Both dropdowns are position: fixed and placed by placePopover() from the
+     trigger rect, so they can extend past the panel edge instead of being
+     clipped by the scrollable content. */
   .model-popover {
-    position: absolute;
-    z-index: 2;
-    top: calc(100% + 6px);
-    right: 0;
-    width: max(100%, 260px);
+    position: fixed;
+    z-index: 3;
     display: none;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
     gap: 4px;
     padding: 6px;
     border: 1px solid var(--ai-border);
@@ -333,7 +335,7 @@ const STYLE = `
   .model-search { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 8px; border-radius: 9px; color: var(--ai-text-secondary); background: var(--ai-surface-hover); }
   .model-search svg { width: 14px; height: 14px; flex: 0 0 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
   .model-search input { min-width: 0; flex: 1 1 auto; height: 100%; padding: 0; border: 0; outline: 0; color: var(--ai-text); background: transparent; font-size: 12px; }
-  .model-list { max-height: 220px; display: grid; gap: 1px; overflow-y: auto; overscroll-behavior: contain; }
+  .model-list { min-height: 0; max-height: 320px; display: grid; align-content: start; gap: 1px; overflow-y: auto; overscroll-behavior: contain; }
   .model-option { min-height: 30px; display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 8px; color: var(--ai-text); font-size: 12px; cursor: pointer; }
   .model-option[data-active="true"] { background: var(--ai-surface-hover); }
   .model-option[aria-selected="true"] { color: var(--ai-accent); font-weight: 600; }
@@ -346,12 +348,11 @@ const STYLE = `
   .tone-trigger-chevron svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 160ms ease; }
   .tone-trigger[aria-expanded="true"] .tone-trigger-chevron svg { transform: rotate(180deg); }
   .tone-popover {
-    position: absolute;
-    z-index: 2;
-    top: calc(100% + 6px);
-    left: 0;
-    width: max(100%, 180px);
+    position: fixed;
+    z-index: 3;
     display: none;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     gap: 1px;
     padding: 6px;
     border: 1px solid var(--ai-border);
@@ -843,7 +844,12 @@ export class TextareaWritingAssistant {
     this.toneTrigger.addEventListener('click', () => (this.isTonePickerOpen() ? this.closeTonePicker(false) : this.openTonePicker()));
     this.toneTrigger.addEventListener('keydown', this.onToneTriggerKeyDown);
     this.modelTrigger.addEventListener('click', () => (this.isModelPickerOpen() ? this.closeModelPicker(false) : this.openModelPicker()));
-    this.modelSearch.addEventListener('input', () => { this.modelActiveIndex = 0; this.renderModelOptions(); });
+    this.modelSearch.addEventListener('input', () => {
+      this.modelActiveIndex = 0;
+      this.renderModelOptions();
+      this.positionOpenPopovers();
+    });
+    this.content.addEventListener('scroll', this.onContentScroll, { passive: true });
     this.modelSearch.addEventListener('keydown', this.onModelSearchKeyDown);
     this.shadow.addEventListener('pointerdown', (event) => {
       const path = event.composedPath();
@@ -1052,8 +1058,8 @@ export class TextareaWritingAssistant {
     this.modelPopover.dataset.open = 'true';
     this.modelTrigger.setAttribute('aria-expanded', 'true');
     this.renderModelOptions();
+    this.placePopover(this.modelPopover, this.modelTrigger, 'end', 260);
     this.modelSearch.focus({ preventScroll: true });
-    this.modelPopover.scrollIntoView?.({ block: 'nearest' });
   }
 
   private closeModelPicker(restoreFocus: boolean): void {
@@ -1139,7 +1145,42 @@ export class TextareaWritingAssistant {
     this.tonePopover.dataset.open = 'true';
     this.toneTrigger.setAttribute('aria-expanded', 'true');
     this.setToneActiveIndex(Math.max(0, WRITING_TONES.indexOf(this.toneSelect.value as WritingTone)));
-    this.tonePopover.scrollIntoView?.({ block: 'nearest' });
+    this.placePopover(this.tonePopover, this.toneTrigger, 'start', 180);
+  }
+
+  private positionOpenPopovers(): void {
+    if (this.isModelPickerOpen()) this.placePopover(this.modelPopover, this.modelTrigger, 'end', 260);
+    if (this.isTonePickerOpen()) this.placePopover(this.tonePopover, this.toneTrigger, 'start', 180);
+  }
+
+  // Anchor a fixed dropdown to its trigger in the host coordinate space. It
+  // opens below the trigger and may overflow the panel; it flips above only
+  // when the viewport has clearly more room there.
+  private placePopover(popover: HTMLElement, trigger: HTMLElement, align: 'start' | 'end', minWidth: number): void {
+    const space = this.getHostCoordinateSpace();
+    const margin = 8;
+    const gap = 6;
+    const rect = trigger.getBoundingClientRect();
+    const triggerLeft = space.toLocalX(rect.left);
+    const triggerRight = space.toLocalX(rect.right);
+    const triggerTop = space.toLocalY(rect.top);
+    const triggerBottom = space.toLocalY(rect.bottom);
+    const viewportWidth = Math.max(0, space.viewportRight - space.viewportLeft - margin * 2);
+    const width = Math.min(viewportWidth, Math.max(triggerRight - triggerLeft, minWidth));
+    const minLeft = space.viewportLeft + margin;
+    const maxLeft = Math.max(minLeft, space.viewportRight - margin - width);
+    const desiredLeft = align === 'end' ? triggerRight - width : triggerLeft;
+    const roomBelow = Math.max(0, space.viewportBottom - margin - (triggerBottom + gap));
+    const roomAbove = Math.max(0, triggerTop - gap - (space.viewportTop + margin));
+    const placeAbove = roomBelow < 200 && roomAbove > roomBelow;
+
+    popover.style.left = `${Math.max(minLeft, Math.min(maxLeft, desiredLeft))}px`;
+    popover.style.width = `${width}px`;
+    popover.style.maxHeight = `${placeAbove ? roomAbove : roomBelow}px`;
+    popover.dataset.placement = placeAbove ? 'top' : 'bottom';
+    popover.style.top = placeAbove
+      ? `${triggerTop - gap - popover.offsetHeight}px`
+      : `${triggerBottom + gap}px`;
   }
 
   private closeTonePicker(restoreFocus: boolean): void {
@@ -1324,6 +1365,7 @@ export class TextareaWritingAssistant {
     const desiredTop = space.toLocalY(event.clientY) - drag.offsetY;
     this.panel.style.left = `${Math.max(minLeft, Math.min(maxLeft, desiredLeft))}px`;
     this.panel.style.top = `${Math.max(minTop, Math.min(maxTop, desiredTop))}px`;
+    this.positionOpenPopovers();
   };
 
   private readonly onPanelDragEnd = (event: PointerEvent): void => {
@@ -1345,7 +1387,15 @@ export class TextareaWritingAssistant {
     // Nested scrollers (the model list, long source/result previews) take the
     // wheel first, like overscroll-behavior: contain. Without this the window
     // handler below would always move the outer content instead.
-    const scroller = this.findNestedScroller(path) ?? this.content;
+    const nestedScroller = this.findNestedScroller(path);
+    if (!nestedScroller && (path.includes(this.modelPopover) || path.includes(this.tonePopover))) {
+      // An open dropdown floats over the content; never scroll the panel
+      // behind it, which would also drag the dropdown along.
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    const scroller = nestedScroller ?? this.content;
     const maxScrollTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
     if (maxScrollTop <= 0 && scroller === this.content) return;
 
@@ -1391,6 +1441,10 @@ export class TextareaWritingAssistant {
     }
     this.positionLauncher();
     if (this.panelOpen) this.refreshPanelPosition();
+  };
+
+  private readonly onContentScroll = (): void => {
+    this.positionOpenPopovers();
   };
 
   private ensureOpenPanelMounted(): void {
@@ -1443,6 +1497,7 @@ export class TextareaWritingAssistant {
   private refreshPanelPosition(): void {
     if (this.panelManuallyPositioned) this.positionPanelWithinViewport();
     else this.positionPanel();
+    this.positionOpenPopovers();
   }
 
   private showLauncher(): void {

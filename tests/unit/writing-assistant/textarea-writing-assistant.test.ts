@@ -932,6 +932,41 @@ describe('TextareaWritingAssistant', () => {
     assistant.stop();
   });
 
+  it('opens both dropdowns as floating menus anchored under their triggers', () => {
+    const assistant = new TextareaWritingAssistant({
+      document,
+      window,
+      messages: zhCN,
+      requestRewrite: vi.fn(),
+      loadModels: vi.fn(async () => ({ model: 'model-a', models: ['model-a', 'model-b'] })),
+    });
+    assistant.start();
+    const textarea = document.createElement('textarea');
+    textarea.value = '需要润色的长内容';
+    textarea.getBoundingClientRect = rect;
+    document.body.append(textarea);
+    textarea.focus();
+
+    const elements = shadowElements();
+    elements.launcher.click();
+    const style = elements.shadow.querySelector('style')?.textContent ?? '';
+    expect(style).toMatch(/\.model-popover \{\s*position: fixed;/);
+    expect(style).toMatch(/\.tone-popover \{\s*position: fixed;/);
+
+    const triggerRect = (left: number, right: number) => () => ({
+      x: left, y: 300, left, right, top: 300, bottom: 340, width: right - left, height: 40, toJSON: () => ({}),
+    }) as DOMRect;
+    elements.toneTrigger.getBoundingClientRect = triggerRect(100, 300);
+    elements.toneTrigger.click();
+    expect(elements.tonePopover.dataset.open).toBe('true');
+    expect(elements.tonePopover.dataset.placement).toBe('bottom');
+    expect(elements.tonePopover.style.left).toBe('100px');
+    expect(elements.tonePopover.style.top).toBe('346px');
+    expect(elements.tonePopover.style.width).toBe('200px');
+
+    assistant.stop();
+  });
+
   it('shows a check icon for two seconds after copying a rewrite result', async () => {
     const requestRewrite = vi.fn(async () => ({ text: '润色后的结果' }));
     const writeText = vi.fn(async () => undefined);
