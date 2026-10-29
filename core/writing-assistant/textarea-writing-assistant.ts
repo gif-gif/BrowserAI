@@ -1,7 +1,7 @@
 import type { AppMessages } from '../../shared/i18n/messages';
 import type { ResolvedAppearance } from '../../shared/theme/appearance';
 import type { ThemeTokens } from '../../shared/theme/theme';
-import type { WritingAssistResult, WritingTone } from '../../shared/types/writing-assistant';
+import { WRITING_TONES, type WritingAssistResult, type WritingTone } from '../../shared/types/writing-assistant';
 
 type WritingAssistantMessages = Pick<AppMessages,
   | 'writingAssistantOpen'
@@ -340,34 +340,56 @@ const STYLE = `
   .model-option-name { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .model-option svg { width: 14px; height: 14px; flex: 0 0 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .model-empty { margin: 0; padding: 8px; color: var(--ai-text-secondary); font-size: 12px; }
-  .tone-section { padding: 10px 14px 12px; }
-  .tone-label { display: block; padding: 4px 8px 6px; color: var(--ai-text-secondary); font-size: 11px; line-height: 16px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
-  .tone-list { display: grid; gap: 2px; }
-  .tone-option {
+  .tone-section { padding: 10px 22px 12px; }
+  .tone-label { display: block; margin-bottom: 6px; color: var(--ai-text-secondary); font-size: 11px; line-height: 16px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+  .tone-picker-wrap { position: relative; }
+  .tone-trigger {
     width: 100%;
-    min-height: 46px;
-    display: grid;
-    grid-template-columns: 28px minmax(0, 1fr) 20px;
+    height: 36px;
+    display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 7px 10px;
-    appearance: none;
-    border: 1px solid transparent;
-    border-radius: 12px;
+    gap: 8px;
+    padding: 0 10px 0 12px;
+    border: 1px solid var(--ai-border);
+    border-radius: 10px;
     color: var(--ai-text);
-    background: transparent;
+    background: var(--ai-surface-subtle);
+    font-size: 13px;
+    font-weight: 600;
     text-align: left;
     cursor: pointer;
-    transition: background 160ms ease, border-color 160ms ease, transform 120ms ease;
+    outline: none;
+    transition: border-color 160ms ease, background 160ms ease;
   }
-  .tone-option:hover { background: var(--ai-surface-hover); }
-  .tone-option:active { transform: scale(.99); }
-  .tone-option[aria-pressed="true"] { border-color: color-mix(in srgb, var(--ai-accent) 28%, var(--ai-border)); background: var(--ai-accent-soft); }
-  .tone-icon { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 9px; color: var(--ai-accent); background: var(--ai-accent-soft); }
-  .tone-icon svg, .tone-check svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-  .tone-text { overflow: hidden; font-size: 14px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-  .tone-check { display: inline-flex; align-items: center; justify-content: center; color: var(--ai-accent); opacity: 0; }
-  .tone-option[aria-pressed="true"] .tone-check { opacity: 1; }
+  .tone-trigger:hover, .tone-trigger[aria-expanded="true"], .tone-trigger:focus-visible { border-color: color-mix(in srgb, var(--ai-accent) 35%, var(--ai-border)); background: var(--ai-surface-hover); }
+  .tone-trigger-value { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tone-trigger-chevron { flex: 0 0 auto; display: inline-flex; color: var(--ai-text-secondary); }
+  .tone-trigger-chevron svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 160ms ease; }
+  .tone-trigger[aria-expanded="true"] .tone-trigger-chevron svg { transform: rotate(180deg); }
+  .tone-popover {
+    position: absolute;
+    z-index: 2;
+    top: calc(100% + 6px);
+    left: 0;
+    width: 100%;
+    display: none;
+    gap: 1px;
+    padding: 6px;
+    border: 1px solid var(--ai-border);
+    border-radius: 14px;
+    background: var(--ai-surface);
+    box-shadow: 0 12px 32px rgba(15,23,42,.16), 0 2px 8px rgba(15,23,42,.06);
+    animation: ai-model-open 140ms cubic-bezier(.2,0,0,1);
+  }
+  .tone-popover[data-open="true"] { display: grid; }
+  .tone-option { min-height: 34px; display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 8px; color: var(--ai-text); font-size: 13px; cursor: pointer; }
+  .tone-option[data-active="true"] { background: var(--ai-surface-hover); }
+  .tone-option[aria-selected="true"] { color: var(--ai-accent); font-weight: 600; }
+  .tone-icon { width: 22px; height: 22px; flex: 0 0 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 7px; color: var(--ai-accent); background: var(--ai-accent-soft); }
+  .tone-icon svg, .tone-check svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .tone-text { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tone-check { flex: 0 0 auto; display: inline-flex; color: var(--ai-accent); opacity: 0; }
+  .tone-option[aria-selected="true"] .tone-check { opacity: 1; }
   .feedback { padding: 0 22px; }
   .status { display: none; margin: 0 0 12px; padding: 9px 11px; border-radius: 10px; color: var(--ai-text-secondary); background: var(--ai-surface-subtle); font-size: 12px; line-height: 18px; }
   .status[data-kind="error"] { display: block; color: #b42318; background: #fef3f2; }
@@ -417,7 +439,7 @@ const STYLE = `
   }
   @keyframes ai-writing-spin { to { transform: rotate(360deg); } }
   .launcher:focus-visible, .icon-button:focus-visible, .insert-button:focus-visible, .retry-button:focus-visible,
-  .tone-option:focus-visible, .generate-button:focus-visible {
+  .tone-trigger:focus-visible, .generate-button:focus-visible {
     outline: 3px solid var(--ai-focus);
     outline-offset: 2px;
   }
@@ -447,13 +469,13 @@ const STYLE = `
   :host([data-appearance="dark"]) .panel { box-shadow: 0 22px 64px rgba(0,0,0,.48), 0 5px 18px rgba(0,0,0,.28); }
   :host([data-appearance="dark"]) .composer-input::placeholder { color: #777d88; }
   :host([data-appearance="dark"]) .tone-icon { color: color-mix(in srgb, var(--ai-accent) 68%, white); background: color-mix(in srgb, var(--ai-accent) 18%, var(--ai-surface-subtle)); }
-  :host([data-appearance="dark"]) .tone-option[aria-pressed="true"] { border-color: color-mix(in srgb, var(--ai-accent) 55%, var(--ai-border)); background: color-mix(in srgb, var(--ai-accent) 24%, var(--ai-surface-subtle)); }
-  :host([data-appearance="dark"]) .tone-option[aria-pressed="true"] .tone-text { color: #f8fafc; }
+  :host([data-appearance="dark"]) .tone-option[aria-selected="true"] { color: color-mix(in srgb, var(--ai-accent) 68%, white); }
+  :host([data-appearance="dark"]) .tone-popover { box-shadow: 0 12px 32px rgba(0,0,0,.42); }
   :host([data-appearance="dark"]) .status[data-kind="error"] { color: #fda29b; background: #4a2525; }
   :host([data-appearance="dark"]) .status[data-kind="success"] { color: #6ce9a6; background: #183a2d; }
   :host([data-appearance="dark"]) .composer { box-shadow: 0 7px 22px rgba(0,0,0,.30); }
   @media (prefers-reduced-motion: reduce) {
-    .launcher, .panel, .icon-button, .insert-button, .retry-button, .tone-option, .generate-button { animation: none; transition: none; }
+    .launcher, .panel, .icon-button, .insert-button, .retry-button, .tone-trigger, .tone-popover, .generate-button { animation: none; transition: none; }
   }
 `;
 
@@ -519,7 +541,19 @@ export class TextareaWritingAssistant {
   private modelActiveIndex = 0;
   private readonly toneLabel: HTMLSpanElement;
   private readonly toneSelect: HTMLSelectElement;
-  private readonly toneButtons = new Map<WritingTone, HTMLButtonElement>();
+  private readonly toneSection: HTMLDivElement;
+  private readonly toneTrigger: HTMLButtonElement;
+  private readonly toneTriggerIcon: HTMLSpanElement;
+  private readonly toneValue: HTMLSpanElement;
+  private readonly tonePopover: HTMLDivElement;
+  private readonly toneOptions = new Map<WritingTone, HTMLDivElement>();
+  private readonly toneIcons: Record<WritingTone, string> = {
+    polish: '<path d="m12 3 .8 2.4a5.5 5.5 0 0 0 3.5 3.5l2.4.8-2.4.8a5.5 5.5 0 0 0-3.5 3.5l-.8 2.4-.8-2.4a5.5 5.5 0 0 0-3.5-3.5l-2.4-.8 2.4-.8a5.5 5.5 0 0 0 3.5-3.5L12 3Z"/>',
+    professional: '<rect x="4" y="7" width="16" height="12" rx="2"/><path d="M9 7V5h6v2M4 12h16M10 12v2h4v-2"/>',
+    friendly: '<circle cx="12" cy="12" r="9"/><path d="M8.5 10h.01M15.5 10h.01M8 14.5c1 1.2 2.3 1.8 4 1.8s3-.6 4-1.8"/>',
+    concise: '<path d="M5 7h14M5 12h9M5 17h6"/>',
+  };
+  private toneActiveIndex = 0;
   private readonly contextLabel: HTMLLabelElement;
   private readonly contextInput: HTMLInputElement;
   private readonly privacyText: HTMLSpanElement;
@@ -707,44 +741,67 @@ export class TextareaWritingAssistant {
 
     const toneSection = document.createElement('div');
     toneSection.className = 'tone-section';
+    this.toneSection = toneSection;
     this.toneLabel = document.createElement('span');
     this.toneLabel.className = 'tone-label';
     this.toneLabel.id = 'chrome-ai-writing-tone-label';
+    // The hidden select keeps the chosen tone; the dropdown below is its visible control.
     this.toneSelect = document.createElement('select');
     this.toneSelect.id = 'chrome-ai-writing-tone';
     this.toneSelect.className = 'sr-only';
-    this.toneSelect.setAttribute('aria-labelledby', this.toneLabel.id);
-    const toneList = document.createElement('div');
-    toneList.className = 'tone-list';
-    const toneIcons: Record<WritingTone, string> = {
-      polish: '<path d="m12 3 .8 2.4a5.5 5.5 0 0 0 3.5 3.5l2.4.8-2.4.8a5.5 5.5 0 0 0-3.5 3.5l-.8 2.4-.8-2.4a5.5 5.5 0 0 0-3.5-3.5l-2.4-.8 2.4-.8a5.5 5.5 0 0 0 3.5-3.5L12 3Z"/>',
-      professional: '<rect x="4" y="7" width="16" height="12" rx="2"/><path d="M9 7V5h6v2M4 12h16M10 12v2h4v-2"/>',
-      friendly: '<circle cx="12" cy="12" r="9"/><path d="M8.5 10h.01M15.5 10h.01M8 14.5c1 1.2 2.3 1.8 4 1.8s3-.6 4-1.8"/>',
-      concise: '<path d="M5 7h14M5 12h9M5 17h6"/>',
-    };
-    for (const value of ['polish', 'professional', 'friendly', 'concise'] satisfies WritingTone[]) {
+    this.toneSelect.tabIndex = -1;
+    this.toneSelect.setAttribute('aria-hidden', 'true');
+    const tonePickerWrap = document.createElement('div');
+    tonePickerWrap.className = 'tone-picker-wrap';
+    this.toneTrigger = document.createElement('button');
+    this.toneTrigger.type = 'button';
+    this.toneTrigger.id = 'chrome-ai-writing-tone-trigger';
+    this.toneTrigger.className = 'tone-trigger';
+    this.toneTrigger.setAttribute('role', 'combobox');
+    this.toneTrigger.setAttribute('aria-haspopup', 'listbox');
+    this.toneTrigger.setAttribute('aria-expanded', 'false');
+    this.toneTrigger.setAttribute('aria-controls', 'chrome-ai-writing-tone-list');
+    this.toneTrigger.setAttribute('aria-labelledby', `${this.toneLabel.id} chrome-ai-writing-tone-trigger`);
+    this.toneTriggerIcon = document.createElement('span');
+    this.toneTriggerIcon.className = 'tone-icon';
+    this.toneValue = document.createElement('span');
+    this.toneValue.className = 'tone-trigger-value';
+    const toneChevron = document.createElement('span');
+    toneChevron.className = 'tone-trigger-chevron';
+    toneChevron.append(createSvg(document, '<path d="m8 10 4 4 4-4"/>'));
+    this.toneTrigger.append(this.toneTriggerIcon, this.toneValue, toneChevron);
+    this.tonePopover = document.createElement('div');
+    this.tonePopover.id = 'chrome-ai-writing-tone-list';
+    this.tonePopover.className = 'tone-popover';
+    this.tonePopover.setAttribute('role', 'listbox');
+    this.tonePopover.setAttribute('aria-labelledby', this.toneLabel.id);
+    for (const [index, value] of WRITING_TONES.entries()) {
       const option = document.createElement('option');
       option.value = value;
       this.toneSelect.append(option);
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'tone-option';
-      button.dataset.tone = value;
-      button.setAttribute('aria-pressed', value === 'polish' ? 'true' : 'false');
+      const item = document.createElement('div');
+      item.id = `chrome-ai-writing-tone-option-${value}`;
+      item.className = 'tone-option';
+      item.dataset.tone = value;
+      item.setAttribute('role', 'option');
       const icon = document.createElement('span');
       icon.className = 'tone-icon';
-      icon.append(createSvg(document, toneIcons[value]));
+      icon.append(createSvg(document, this.toneIcons[value]));
       const label = document.createElement('span');
       label.className = 'tone-text';
       const check = document.createElement('span');
       check.className = 'tone-check';
       check.append(createSvg(document, '<path d="m6 12 4 4 8-8"/>'));
-      button.append(icon, label, check);
-      button.addEventListener('click', () => this.selectTone(value));
-      this.toneButtons.set(value, button);
-      toneList.append(button);
+      item.append(icon, label, check);
+      item.addEventListener('pointerenter', () => this.setToneActiveIndex(index));
+      item.addEventListener('mousedown', (event) => event.preventDefault());
+      item.addEventListener('click', () => this.chooseTone(value));
+      this.toneOptions.set(value, item);
+      this.tonePopover.append(item);
     }
-    toneSection.append(this.toneLabel, this.toneSelect, toneList);
+    tonePickerWrap.append(this.toneTrigger, this.tonePopover);
+    toneSection.append(this.toneLabel, this.toneSelect, tonePickerWrap);
+    this.syncTonePicker();
 
     const feedback = document.createElement('div');
     feedback.className = 'feedback';
@@ -805,12 +862,16 @@ export class TextareaWritingAssistant {
     this.insertButton.addEventListener('click', () => this.insertResult(this.activeResult));
     this.retryButton.addEventListener('click', () => void this.generate());
     this.copyButton.addEventListener('click', () => void this.copyResult(this.activeResult, this.result, this.copyButton, true));
-    this.toneSelect.addEventListener('change', () => this.syncToneButtons());
+    this.toneSelect.addEventListener('change', () => this.syncTonePicker());
+    this.toneTrigger.addEventListener('click', () => (this.isTonePickerOpen() ? this.closeTonePicker(false) : this.openTonePicker()));
+    this.toneTrigger.addEventListener('keydown', this.onToneTriggerKeyDown);
     this.modelTrigger.addEventListener('click', () => (this.isModelPickerOpen() ? this.closeModelPicker(false) : this.openModelPicker()));
     this.modelSearch.addEventListener('input', () => { this.modelActiveIndex = 0; this.renderModelOptions(); });
     this.modelSearch.addEventListener('keydown', this.onModelSearchKeyDown);
     this.shadow.addEventListener('pointerdown', (event) => {
-      if (this.isModelPickerOpen() && !event.composedPath().includes(this.modelSection)) this.closeModelPicker(false);
+      const path = event.composedPath();
+      if (this.isModelPickerOpen() && !path.includes(this.modelSection)) this.closeModelPicker(false);
+      if (this.isTonePickerOpen() && !path.includes(this.toneSection)) this.closeTonePicker(false);
     });
     this.shadow.addEventListener('keydown', this.onShadowKeyDown);
     this.setMessages(this.messages);
@@ -915,12 +976,11 @@ export class TextareaWritingAssistant {
       concise: messages.writingToneConcise,
     };
     for (const option of this.toneSelect.options) option.textContent = toneLabels[option.value as WritingTone];
-    for (const [tone, button] of this.toneButtons) {
-      const label = button.querySelector<HTMLElement>('.tone-text');
+    for (const [tone, option] of this.toneOptions) {
+      const label = option.querySelector<HTMLElement>('.tone-text');
       if (label) label.textContent = toneLabels[tone];
-      button.title = toneLabels[tone];
-      button.setAttribute('aria-label', toneLabels[tone]);
     }
+    this.syncTonePicker();
     this.contextLabel.textContent = messages.writingAssistantContext;
     this.contextInput.placeholder = messages.writingAssistantContextPlaceholder;
     this.privacyText.textContent = messages.writingAssistantPrivacy;
@@ -1009,6 +1069,7 @@ export class TextareaWritingAssistant {
 
   private openModelPicker(): void {
     if (this.modelTrigger.disabled || this.models.length === 0) return;
+    this.closeTonePicker(false);
     this.modelSearch.value = '';
     this.modelActiveIndex = Math.max(0, this.models.indexOf(this.selectedModel));
     this.modelPopover.dataset.open = 'true';
@@ -1092,17 +1153,69 @@ export class TextareaWritingAssistant {
     }
   };
 
-  private selectTone(tone: WritingTone): void {
-    this.toneSelect.value = tone;
-    this.syncToneButtons();
+  private isTonePickerOpen(): boolean {
+    return this.tonePopover.dataset.open === 'true';
   }
 
-  private syncToneButtons(): void {
-    const selectedTone = this.toneSelect.value as WritingTone;
-    for (const [tone, button] of this.toneButtons) {
-      button.setAttribute('aria-pressed', String(tone === selectedTone));
-    }
+  private openTonePicker(): void {
+    this.closeModelPicker(false);
+    this.tonePopover.dataset.open = 'true';
+    this.toneTrigger.setAttribute('aria-expanded', 'true');
+    this.setToneActiveIndex(Math.max(0, WRITING_TONES.indexOf(this.toneSelect.value as WritingTone)));
+    this.tonePopover.scrollIntoView?.({ block: 'nearest' });
   }
+
+  private closeTonePicker(restoreFocus: boolean): void {
+    if (!this.isTonePickerOpen()) return;
+    delete this.tonePopover.dataset.open;
+    this.toneTrigger.setAttribute('aria-expanded', 'false');
+    this.toneTrigger.removeAttribute('aria-activedescendant');
+    if (restoreFocus) this.toneTrigger.focus({ preventScroll: true });
+  }
+
+  private chooseTone(tone: WritingTone): void {
+    this.toneSelect.value = tone;
+    this.syncTonePicker();
+    this.closeTonePicker(true);
+  }
+
+  private setToneActiveIndex(index: number): void {
+    this.toneActiveIndex = index;
+    for (const [optionIndex, tone] of WRITING_TONES.entries()) {
+      this.toneOptions.get(tone)!.dataset.active = optionIndex === index ? 'true' : 'false';
+    }
+    this.toneTrigger.setAttribute('aria-activedescendant', `chrome-ai-writing-tone-option-${WRITING_TONES[index]}`);
+  }
+
+  private syncTonePicker(): void {
+    const selectedTone = this.toneSelect.value as WritingTone;
+    for (const [tone, option] of this.toneOptions) {
+      option.setAttribute('aria-selected', String(tone === selectedTone));
+    }
+    this.toneTriggerIcon.replaceChildren(createSvg(this.options.document, this.toneIcons[selectedTone]));
+    this.toneValue.textContent = this.toneLabelFor(selectedTone);
+    this.toneTrigger.title = this.toneValue.textContent;
+  }
+
+  private readonly onToneTriggerKeyDown = (event: KeyboardEvent): void => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (!this.isTonePickerOpen()) {
+        this.openTonePicker();
+        return;
+      }
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      this.setToneActiveIndex((this.toneActiveIndex + step + WRITING_TONES.length) % WRITING_TONES.length);
+    } else if ((event.key === 'Enter' || event.key === ' ') && this.isTonePickerOpen()) {
+      event.preventDefault();
+      this.chooseTone(WRITING_TONES[this.toneActiveIndex]!);
+    } else if (event.key === 'Escape') {
+      // The shadow-level handler still stops Escape from reaching the page.
+      this.closeTonePicker(true);
+    } else if (event.key === 'Tab') {
+      this.closeTonePicker(false);
+    }
+  };
 
   private readonly onLauncherActivationCapture = (event: Event): void => {
     if (!this.enabled || !event.composedPath().includes(this.launcher)) return;
@@ -1448,7 +1561,7 @@ export class TextareaWritingAssistant {
     this.panel.style.display = 'block';
     this.resetHistory();
     this.clearStatus();
-    this.syncToneButtons();
+    this.syncTonePicker();
     void this.ensureModelsLoaded();
     // Never treat the textarea's full value as rewrite input. A source snapshot
     // is created only from a non-empty range the user explicitly selected.
@@ -1469,6 +1582,7 @@ export class TextareaWritingAssistant {
     delete this.header.dataset.dragging;
     this.panelOpen = false;
     this.closeModelPicker(false);
+    this.closeTonePicker(false);
     this.panel.style.display = 'none';
     this.resetHistory();
     if (restoreFocus && this.target?.isConnected) this.target.focus({ preventScroll: true });

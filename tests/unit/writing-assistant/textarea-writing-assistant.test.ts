@@ -27,7 +27,9 @@ function shadowElements() {
     modelPopover: shadow.querySelector<HTMLElement>('.model-popover')!,
     modelOptions: () => [...shadow.querySelectorAll<HTMLElement>('.model-option')],
     tone: shadow.querySelector<HTMLSelectElement>('#chrome-ai-writing-tone')!,
-    toneButtons: [...shadow.querySelectorAll<HTMLButtonElement>('.tone-option')],
+    toneTrigger: shadow.querySelector<HTMLButtonElement>('#chrome-ai-writing-tone-trigger')!,
+    tonePopover: shadow.querySelector<HTMLElement>('.tone-popover')!,
+    toneOptions: [...shadow.querySelectorAll<HTMLElement>('.tone-option')],
     context: shadow.querySelector<HTMLInputElement>('#chrome-ai-writing-context')!,
     generate: shadow.querySelector<HTMLButtonElement>('.generate-button')!,
     resultWrap: shadow.querySelector<HTMLElement>('.result-wrap')!,
@@ -73,7 +75,7 @@ describe('TextareaWritingAssistant', () => {
       expect(elements.insert.textContent).toBe(en.writingAssistantInsert);
       expect(elements.retry.textContent).toBe(en.retry);
       expect(elements.copy.getAttribute('aria-label')).toBe(en.copy);
-      expect(elements.toneButtons.map((button) => button.textContent)).toEqual(expect.arrayContaining([
+      expect(elements.toneOptions.map((option) => option.textContent)).toEqual(expect.arrayContaining([
         expect.stringContaining(en.writingTonePolish),
         expect.stringContaining(en.writingToneProfessional),
         expect.stringContaining(en.writingToneFriendly),
@@ -1091,8 +1093,8 @@ describe('TextareaWritingAssistant', () => {
     elements.launcher.click();
     expect(elements.panel.style.display).toBe('block');
     expect(elements.source.textContent).toBe('这个说法不太好。');
-    expect(elements.toneButtons).toHaveLength(4);
-    expect(elements.toneButtons[0]?.getAttribute('aria-pressed')).toBe('true');
+    expect(elements.toneOptions).toHaveLength(4);
+    expect(elements.toneOptions[0]?.getAttribute('aria-selected')).toBe('true');
     elements.tone.value = 'professional';
     elements.context.value = '用于给客户发送的邮件';
     elements.generate.click();
@@ -1118,5 +1120,58 @@ describe('TextareaWritingAssistant', () => {
     expect(textarea.selectionStart).toBe(textarea.value.length);
 
     assistant.stop();
+  });
+
+  it('picks the tone from a dropdown with mouse and keyboard', () => {
+    const assistant = new TextareaWritingAssistant({
+      document,
+      window,
+      messages: zhCN,
+      requestRewrite: vi.fn(),
+      loadModels: vi.fn(async () => ({ model: 'm1', models: ['m1', 'm2'] })),
+    });
+    assistant.start();
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = '这个说法不太好。';
+      document.body.append(textarea);
+      textarea.focus();
+      textarea.setSelectionRange(0, textarea.value.length);
+      const elements = shadowElements();
+      elements.launcher.click();
+
+      expect(elements.toneTrigger.textContent).toContain(zhCN.writingTonePolish);
+      expect(elements.toneTrigger.getAttribute('aria-expanded')).toBe('false');
+      expect(elements.tonePopover.dataset.open).toBeUndefined();
+
+      elements.toneTrigger.click();
+      expect(elements.tonePopover.dataset.open).toBe('true');
+      expect(elements.toneTrigger.getAttribute('aria-expanded')).toBe('true');
+      elements.toneOptions[3]!.click();
+      expect(elements.tone.value).toBe('concise');
+      expect(elements.toneTrigger.textContent).toContain(zhCN.writingToneConcise);
+      expect(elements.toneOptions[3]!.getAttribute('aria-selected')).toBe('true');
+      expect(elements.tonePopover.dataset.open).toBeUndefined();
+
+      elements.toneTrigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+      expect(elements.tonePopover.dataset.open).toBe('true');
+      expect(elements.toneTrigger.getAttribute('aria-activedescendant')).toBe('chrome-ai-writing-tone-option-concise');
+      elements.toneTrigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+      elements.toneTrigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+      elements.toneTrigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(elements.tone.value).toBe('professional');
+      expect(elements.tonePopover.dataset.open).toBeUndefined();
+
+      elements.toneTrigger.click();
+      elements.toneTrigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect(elements.tonePopover.dataset.open).toBeUndefined();
+      expect(elements.tone.value).toBe('professional');
+
+      elements.toneTrigger.click();
+      elements.source.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true }));
+      expect(elements.tonePopover.dataset.open).toBeUndefined();
+    } finally {
+      assistant.stop();
+    }
   });
 });
