@@ -111,6 +111,7 @@ export interface AppMessages {
   skillsMenu: string;
   manageSkills: string;
   noNewChatShortcuts: string;
+  composerShortcutsMenu: string;
   manageNewChatShortcuts: string;
   noSkills: string;
   skillSettingsDescription: string;

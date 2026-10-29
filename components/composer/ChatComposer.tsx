@@ -826,7 +826,7 @@ export function ChatComposer({
                       onClick={() => setMenuView('shortcuts')}
                     >
                       <span className="composer-menu__icon" aria-hidden="true"><BoltIcon /></span>
-                      <span className="composer-menu__label">{messages.newChatShortcuts}</span>
+                      <span className="composer-menu__label">{messages.composerShortcutsMenu}</span>
                       <span className="composer-menu__trail" aria-hidden="true"><ChevronRightIcon /></span>
                     </button>
                   ) : null}

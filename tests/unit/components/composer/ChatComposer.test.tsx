@@ -498,7 +498,7 @@ describe('ChatComposer', () => {
     );
 
     await user.click(screen.getByRole('button', { name: '添加内容' }));
-    await user.click(screen.getByRole('menuitem', { name: '新会话快捷方式' }));
+    await user.click(screen.getByRole('menuitem', { name: '快捷方式' }));
     const menu = screen.getByRole('menu');
     expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['返回', '总结', '翻译', '管理快捷方式']);
     expect(within(menu).getByRole('menuitem', { name: '总结' })).toHaveAttribute('title', '总结当前页面');
@@ -509,7 +509,7 @@ describe('ChatComposer', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '添加内容' }));
-    await user.click(await screen.findByRole('menuitem', { name: '新会话快捷方式' }));
+    await user.click(await screen.findByRole('menuitem', { name: '快捷方式' }));
     await user.click(screen.getByRole('menuitem', { name: '管理快捷方式' }));
     expect(onManage).toHaveBeenCalledTimes(1);
   });
@@ -518,7 +518,7 @@ describe('ChatComposer', () => {
     const user = userEvent.setup();
     const { rerender } = render(<ChatComposer value="" onChange={vi.fn()} onSend={vi.fn()} newChatShortcuts={[]} />);
     await user.click(screen.getByRole('button', { name: '添加内容' }));
-    await user.click(screen.getByRole('menuitem', { name: '新会话快捷方式' }));
+    await user.click(screen.getByRole('menuitem', { name: '快捷方式' }));
     expect(screen.getByText('未设置快捷方式')).toBeInTheDocument();
 
     rerender(<ChatComposer value="" onChange={vi.fn()} onSend={vi.fn()} newChatShortcuts={[{ key: 'a', label: '总结', run: vi.fn() }]} newChatShortcutsDisabled />);
