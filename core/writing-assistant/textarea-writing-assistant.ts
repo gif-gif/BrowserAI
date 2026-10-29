@@ -285,22 +285,23 @@ const STYLE = `
   .retry-button:hover:not(:disabled) { color: var(--ai-text); background: var(--ai-surface-hover); }
   .copy-button { width: 28px; height: 28px; margin-left: auto; border-radius: 8px; }
   .copy-button[data-copied="true"] { color: var(--ai-accent); background: var(--ai-accent-soft); }
-  .model-section { padding: 10px 22px 2px; }
-  .model-label { display: block; margin-bottom: 6px; color: var(--ai-text-secondary); font-size: 11px; line-height: 16px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+  .picker-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 10px 22px 12px; }
+  .model-section, .tone-section { min-width: 0; }
   .model-picker-wrap { position: relative; }
-  .model-trigger {
+  .model-trigger, .tone-trigger {
     width: 100%;
-    height: 36px;
+    height: 40px;
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 0 10px 0 12px;
+    padding: 0 12px 0 14px;
     border: 1px solid var(--ai-border);
-    border-radius: 10px;
+    border-radius: 12px;
     color: var(--ai-text);
-    background: var(--ai-surface-subtle);
-    font-size: 13px;
-    font-weight: 600;
+    background: var(--ai-surface);
+    box-shadow: 0 1px 2px rgba(15,23,42,.05);
+    font-size: 14px;
+    font-weight: 500;
     text-align: left;
     cursor: pointer;
     outline: none;
@@ -308,17 +309,16 @@ const STYLE = `
   }
   .model-trigger:hover:not(:disabled), .model-trigger[aria-expanded="true"], .model-trigger:focus-visible { border-color: color-mix(in srgb, var(--ai-accent) 35%, var(--ai-border)); background: var(--ai-surface-hover); }
   .model-trigger:disabled { cursor: not-allowed; opacity: .62; }
-  .model-trigger-icon, .model-trigger-chevron { flex: 0 0 auto; display: inline-flex; color: var(--ai-text-secondary); }
-  .model-trigger-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
-  .model-trigger-chevron svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 160ms ease; }
+  .model-trigger-chevron { flex: 0 0 auto; display: inline-flex; color: var(--ai-text-secondary); }
+  .model-trigger-chevron svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 160ms ease; }
   .model-trigger[aria-expanded="true"] .model-trigger-chevron svg { transform: rotate(180deg); }
   .model-trigger-value { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .model-popover {
     position: absolute;
     z-index: 2;
     top: calc(100% + 6px);
-    left: 0;
-    width: min(280px, 100%);
+    right: 0;
+    width: max(100%, 260px);
     display: none;
     gap: 4px;
     padding: 6px;
@@ -340,38 +340,17 @@ const STYLE = `
   .model-option-name { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .model-option svg { width: 14px; height: 14px; flex: 0 0 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .model-empty { margin: 0; padding: 8px; color: var(--ai-text-secondary); font-size: 12px; }
-  .tone-section { padding: 10px 22px 12px; }
-  .tone-label { display: block; margin-bottom: 6px; color: var(--ai-text-secondary); font-size: 11px; line-height: 16px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
-  .tone-picker-wrap { position: relative; }
-  .tone-trigger {
-    width: 100%;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0 10px 0 12px;
-    border: 1px solid var(--ai-border);
-    border-radius: 10px;
-    color: var(--ai-text);
-    background: var(--ai-surface-subtle);
-    font-size: 13px;
-    font-weight: 600;
-    text-align: left;
-    cursor: pointer;
-    outline: none;
-    transition: border-color 160ms ease, background 160ms ease;
-  }
   .tone-trigger:hover, .tone-trigger[aria-expanded="true"], .tone-trigger:focus-visible { border-color: color-mix(in srgb, var(--ai-accent) 35%, var(--ai-border)); background: var(--ai-surface-hover); }
   .tone-trigger-value { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tone-trigger-chevron { flex: 0 0 auto; display: inline-flex; color: var(--ai-text-secondary); }
-  .tone-trigger-chevron svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 160ms ease; }
+  .tone-trigger-chevron svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 160ms ease; }
   .tone-trigger[aria-expanded="true"] .tone-trigger-chevron svg { transform: rotate(180deg); }
   .tone-popover {
     position: absolute;
     z-index: 2;
     top: calc(100% + 6px);
     left: 0;
-    width: 100%;
+    width: max(100%, 180px);
     display: none;
     gap: 1px;
     padding: 6px;
@@ -543,7 +522,6 @@ export class TextareaWritingAssistant {
   private readonly toneSelect: HTMLSelectElement;
   private readonly toneSection: HTMLDivElement;
   private readonly toneTrigger: HTMLButtonElement;
-  private readonly toneTriggerIcon: HTMLSpanElement;
   private readonly toneValue: HTMLSpanElement;
   private readonly tonePopover: HTMLDivElement;
   private readonly toneOptions = new Map<WritingTone, HTMLDivElement>();
@@ -689,7 +667,8 @@ export class TextareaWritingAssistant {
     modelSection.className = 'model-section';
     this.modelSection = modelSection;
     this.modelLabel = document.createElement('span');
-    this.modelLabel.className = 'model-label';
+    // The row has no visible headings; labels stay for screen readers.
+    this.modelLabel.className = 'model-label sr-only';
     this.modelLabel.id = 'chrome-ai-writing-model-label';
     const modelPickerWrap = document.createElement('div');
     modelPickerWrap.className = 'model-picker-wrap';
@@ -703,15 +682,12 @@ export class TextareaWritingAssistant {
     this.modelTrigger.setAttribute('aria-expanded', 'false');
     this.modelTrigger.setAttribute('aria-controls', 'chrome-ai-writing-model-list');
     this.modelTrigger.setAttribute('aria-labelledby', `${this.modelLabel.id} chrome-ai-writing-model`);
-    const modelIcon = document.createElement('span');
-    modelIcon.className = 'model-trigger-icon';
-    modelIcon.append(createSvg(document, '<path d="M4 7.5 12 3l8 4.5-8 4.5-8-4.5Z"/><path d="m4 12 8 4.5 8-4.5M4 16.5 12 21l8-4.5"/>'));
     this.modelValue = document.createElement('span');
     this.modelValue.className = 'model-trigger-value';
     const modelChevron = document.createElement('span');
     modelChevron.className = 'model-trigger-chevron';
     modelChevron.append(createSvg(document, '<path d="m8 10 4 4 4-4"/>'));
-    this.modelTrigger.append(modelIcon, this.modelValue, modelChevron);
+    this.modelTrigger.append(this.modelValue, modelChevron);
 
     this.modelPopover = document.createElement('div');
     this.modelPopover.className = 'model-popover';
@@ -743,7 +719,7 @@ export class TextareaWritingAssistant {
     toneSection.className = 'tone-section';
     this.toneSection = toneSection;
     this.toneLabel = document.createElement('span');
-    this.toneLabel.className = 'tone-label';
+    this.toneLabel.className = 'tone-label sr-only';
     this.toneLabel.id = 'chrome-ai-writing-tone-label';
     // The hidden select keeps the chosen tone; the dropdown below is its visible control.
     this.toneSelect = document.createElement('select');
@@ -762,14 +738,12 @@ export class TextareaWritingAssistant {
     this.toneTrigger.setAttribute('aria-expanded', 'false');
     this.toneTrigger.setAttribute('aria-controls', 'chrome-ai-writing-tone-list');
     this.toneTrigger.setAttribute('aria-labelledby', `${this.toneLabel.id} chrome-ai-writing-tone-trigger`);
-    this.toneTriggerIcon = document.createElement('span');
-    this.toneTriggerIcon.className = 'tone-icon';
     this.toneValue = document.createElement('span');
     this.toneValue.className = 'tone-trigger-value';
     const toneChevron = document.createElement('span');
     toneChevron.className = 'tone-trigger-chevron';
     toneChevron.append(createSvg(document, '<path d="m8 10 4 4 4-4"/>'));
-    this.toneTrigger.append(this.toneTriggerIcon, this.toneValue, toneChevron);
+    this.toneTrigger.append(this.toneValue, toneChevron);
     this.tonePopover = document.createElement('div');
     this.tonePopover.id = 'chrome-ai-writing-tone-list';
     this.tonePopover.className = 'tone-popover';
@@ -816,7 +790,10 @@ export class TextareaWritingAssistant {
     privacy.append(createSvg(document, '<path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>'));
     this.privacyText = document.createElement('span');
     privacy.append(this.privacyText);
-    this.content.append(this.sourcePreview, this.resultWrap, this.historySection, modelSection, toneSection, feedback, privacy);
+    const pickerRow = document.createElement('div');
+    pickerRow.className = 'picker-row';
+    pickerRow.append(toneSection, modelSection);
+    this.content.append(this.sourcePreview, this.resultWrap, this.historySection, pickerRow, feedback, privacy);
 
     const composerShell = document.createElement('div');
     composerShell.className = 'composer-shell';
@@ -1192,7 +1169,6 @@ export class TextareaWritingAssistant {
     for (const [tone, option] of this.toneOptions) {
       option.setAttribute('aria-selected', String(tone === selectedTone));
     }
-    this.toneTriggerIcon.replaceChildren(createSvg(this.options.document, this.toneIcons[selectedTone]));
     this.toneValue.textContent = this.toneLabelFor(selectedTone);
     this.toneTrigger.title = this.toneValue.textContent;
   }

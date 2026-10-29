@@ -1140,6 +1140,11 @@ describe('TextareaWritingAssistant', () => {
       const elements = shadowElements();
       elements.launcher.click();
 
+      const row = elements.shadow.querySelector<HTMLElement>('.picker-row')!;
+      expect([...row.children].map((child) => child.className)).toEqual(['tone-section', 'model-section']);
+      expect(elements.shadow.querySelector('.tone-label')?.classList.contains('sr-only')).toBe(true);
+      expect(elements.shadow.querySelector('.model-label')?.classList.contains('sr-only')).toBe(true);
+      expect(elements.toneTrigger.querySelector('svg.tone-icon, .tone-icon')).toBeNull();
       expect(elements.toneTrigger.textContent).toContain(zhCN.writingTonePolish);
       expect(elements.toneTrigger.getAttribute('aria-expanded')).toBe('false');
       expect(elements.tonePopover.dataset.open).toBeUndefined();
