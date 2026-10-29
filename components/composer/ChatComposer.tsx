@@ -973,6 +973,7 @@ export function ChatComposer({
         <WritingAssistantDialog
           initialText={value}
           model={models.includes(model) ? model : undefined}
+          models={models}
           rewrite={writingRewrite}
           onUse={(text) => {
             onChange(text);

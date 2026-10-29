@@ -22,7 +22,10 @@ export interface WritingRequest {
 interface WritingAssistantDialogProps {
   /** Prefills the text field, usually with the current composer draft. */
   initialText?: string;
+  /** Preselected model; omitted or unknown falls back to the Gateway default. */
   model?: string;
+  /** Models the user can pick for this polish request. */
+  models?: readonly string[];
   /** Puts the polished text into the chat input. */
   onUse?: (text: string) => void;
   onClose: () => void;
@@ -53,13 +56,14 @@ function createDefaultRewriter(): WritingAssistantDialogProps['rewrite'] {
   };
 }
 
-export function WritingAssistantDialog({ initialText = '', model, onUse, onClose, rewrite }: WritingAssistantDialogProps) {
+export function WritingAssistantDialog({ initialText = '', model, models = [], onUse, onClose, rewrite }: WritingAssistantDialogProps) {
   const { messages, locale } = useI18n();
   const titleId = useId();
   const textId = useId();
   const textRef = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState(initialText.slice(0, MAX_TEXT_LENGTH));
   const [tone, setTone] = useState<WritingTone>('polish');
+  const [selectedModel, setSelectedModel] = useState(model && models.includes(model) ? model : '');
   const [instruction, setInstruction] = useState('');
   const [result, setResult] = useState('');
   const [error, setError] = useState<string>();
@@ -74,6 +78,8 @@ export function WritingAssistantDialog({ initialText = '', model, onUse, onClose
     concise: messages.writingToneConcise,
   };
   const toneOptions = WRITING_TONES.map((value) => ({ value, label: toneLabels[value] }));
+  // '' keeps the request model-less so the background uses the Gateway default.
+  const modelOptions = [{ value: '', label: messages.gatewayDefault }, ...models.map((value) => ({ value, label: value }))];
 
   useEffect(() => { textRef.current?.focus(); }, []);
 
@@ -100,7 +106,7 @@ export function WritingAssistantDialog({ initialText = '', model, onUse, onClose
         text: text.trim(),
         tone,
         instruction: instruction.trim() || undefined,
-        model,
+        model: selectedModel || undefined,
         locale,
       })).trim();
       setResult(polished);
@@ -140,7 +146,10 @@ export function WritingAssistantDialog({ initialText = '', model, onUse, onClose
             onChange={(event) => { setText(event.target.value); setError(undefined); }}
           />
         </div>
-        <Select<WritingTone> label={messages.writingAssistantTone} value={tone} options={toneOptions} disabled={generating} onChange={setTone} />
+        <div className="writing-dialog__row">
+          <Select<WritingTone> label={messages.writingAssistantTone} value={tone} options={toneOptions} disabled={generating} onChange={setTone} />
+          <Select label={messages.model} value={selectedModel} options={modelOptions} disabled={generating} onChange={setSelectedModel} />
+        </div>
         <label className="skill-dialog__field">
           <span>{messages.writingAssistantContext}</span>
           <input

@@ -717,7 +717,7 @@ describe('ChatComposer', () => {
         onChange={onChange}
         onSend={vi.fn()}
         model="gpt-test"
-        models={['gpt-test']}
+        models={['gpt-test', 'gpt-writer']}
         writingRewrite={rewrite}
       />,
     );
@@ -731,6 +731,10 @@ describe('ChatComposer', () => {
     await user.clear(source);
     await user.type(source, '第一行{Shift>}{Enter}{/Shift}第二行');
     await user.type(within(dialog).getByRole('textbox', { name: '语境或要求（可选）' }), '写给客户');
+    const modelSelect = within(dialog).getByRole('combobox', { name: '模型' });
+    expect(modelSelect).toHaveTextContent('gpt-test');
+    await user.click(modelSelect);
+    await user.click(screen.getByRole('option', { name: 'gpt-writer' }));
     await user.click(within(dialog).getByRole('button', { name: '开始润色' }));
 
     expect(await within(dialog).findByText('润色后的文字')).toBeInTheDocument();
@@ -738,7 +742,7 @@ describe('ChatComposer', () => {
       text: '第一行\n第二行',
       tone: 'polish',
       instruction: '写给客户',
-      model: 'gpt-test',
+      model: 'gpt-writer',
       locale: 'zh-CN',
     });
 
@@ -760,8 +764,10 @@ describe('ChatComposer', () => {
     expect(within(dialog).getByRole('alert')).toHaveTextContent('请先在文本框中输入需要润色的文字。');
     expect(rewrite).not.toHaveBeenCalled();
 
+    expect(within(dialog).getByRole('combobox', { name: '模型' })).toHaveTextContent('Gateway 默认');
     await user.type(within(dialog).getByRole('textbox', { name: '原文' }), 'hello');
     await user.click(within(dialog).getByRole('button', { name: '开始润色' }));
+    expect(rewrite).toHaveBeenCalledWith(expect.objectContaining({ model: undefined }));
     expect(await within(dialog).findByRole('alert')).not.toHaveTextContent('请先在文本框中输入需要润色的文字。');
 
     await user.keyboard('{Escape}');
