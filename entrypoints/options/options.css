@@ -192,6 +192,7 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
 .options-nav { position: sticky; top: 0; height: 100vh; padding: 28px 14px; border-right: 1px solid var(--line); background: var(--nav-bg); }
 .options-nav__title { min-width: 0; display: flex; align-items: center; gap: 8px; margin: 0 0 18px; padding: 0 8px; color: var(--ink); font-size: 18px; white-space: nowrap; font-weight: 650; letter-spacing: -.01em; }
 .options-brand__logo { width: 28px; height: 28px; flex: 0 0 auto; border-radius: 8px; }
+:root[data-appearance="dark"] .options-brand__logo { filter: invert(1); }
 .options-brand__name { flex: 0 0 auto; font-weight: 400; }
 .options-brand__suffix { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 15px; font-weight: 500; }
 .options-nav ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
