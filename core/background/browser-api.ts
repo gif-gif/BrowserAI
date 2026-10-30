@@ -28,6 +28,7 @@ export interface BackgroundBrowserApi {
     id: string;
     onMessage: BackgroundEvent<(message: unknown, sender: BackgroundMessageSender) => unknown>;
     onConnect: BackgroundEvent<(port: BackgroundPort) => void>;
+    onInstalled?: BackgroundEvent<(details: { reason: string }) => void>;
   };
   storage: {
     local: {
@@ -38,7 +39,7 @@ export interface BackgroundBrowserApi {
     onClicked: BackgroundEvent<(tab: BackgroundTab) => void>;
   };
   tabs: {
-    query(query: { active: boolean; currentWindow: boolean }): Promise<BackgroundTab[]>;
+    query(query: { active?: boolean; currentWindow?: boolean }): Promise<BackgroundTab[]>;
     get?(tabId: number): Promise<BackgroundTab>;
     sendMessage(tabId: number, message: ContentCommand): Promise<unknown>;
     onRemoved: BackgroundEvent<(tabId: number) => void>;

@@ -24,11 +24,12 @@ function createBrowser() {
   const tabUpdated = event<(tabId: number, change: { url?: string; status?: string }, tab: BackgroundTab) => void>();
   const menuClicked = event<(info: { menuItemId: string | number; selectionText?: string }, tab?: BackgroundTab) => void>();
   const alarm = event<(alarm: { name: string }) => void>();
+  const installed = event<(details: { reason: string }) => void>();
   const queryActiveTab = vi.fn<BackgroundBrowserApi['tabs']['query']>(async () => [
     { id: 7, url: 'https://example.test/article' },
   ]);
   const browser = {
-    runtime: { id: 'extension-id', onMessage: runtimeMessage, onConnect: runtimeConnect },
+    runtime: { id: 'extension-id', onMessage: runtimeMessage, onConnect: runtimeConnect, onInstalled: installed },
     storage: { local: { setAccessLevel: vi.fn(async () => undefined) } },
     action: { onClicked: actionClicked },
     tabs: {
@@ -48,7 +49,7 @@ function createBrowser() {
     alarms: { get: vi.fn(async () => undefined), create: vi.fn(), onAlarm: alarm },
     permissions: { contains: vi.fn<(permission: { origins: string[] }) => Promise<boolean>>(async () => true), request: vi.fn(async () => true), remove: vi.fn(async () => true) },
   } satisfies BackgroundBrowserApi;
-  return { browser, runtimeMessage, runtimeConnect, actionClicked, tabRemoved, tabUpdated };
+  return { browser, runtimeMessage, runtimeConnect, actionClicked, tabRemoved, tabUpdated, installed };
 }
 
 type TestPort = BackgroundPort & {
@@ -251,6 +252,26 @@ describe('background lifecycle and router handlers', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(browser.permissions.request).not.toHaveBeenCalled();
     expect(browser.scripting.executeScript).not.toHaveBeenCalled();
+  });
+
+  it('re-injects the content script into open granted tabs after the extension reloads', async () => {
+    const { browser, installed } = createBrowser();
+    const services = createServices();
+    browser.tabs.query.mockResolvedValue([
+      { id: 1, url: 'https://granted.test/form' },
+      { id: 2, url: 'https://other.test/form' },
+      { id: 3 },
+      { id: 4, url: 'chrome://extensions' },
+    ]);
+    browser.permissions.contains.mockImplementation(async (permission: { origins: string[] }) => permission.origins.includes('https://granted.test/*'));
+    startBackground(browser, { services, migrate: vi.fn(), reconcile: vi.fn(), cleanup: vi.fn() });
+    expect(browser.scripting.executeScript).not.toHaveBeenCalled();
+
+    installed.listeners.forEach((listener) => listener({ reason: 'update' }));
+    await vi.waitFor(() => expect(browser.scripting.executeScript).toHaveBeenCalledWith({ target: { tabId: 1 }, files: ['content-scripts/content.js'] }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(browser.scripting.executeScript).toHaveBeenCalledTimes(1);
+    expect(browser.permissions.request).not.toHaveBeenCalled();
   });
 
   it('refuses the floating chat on pages scripts cannot reach', async () => {

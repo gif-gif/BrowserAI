@@ -129,6 +129,20 @@ async function restorePageScript(api: BackgroundBrowserApi, tabId: number, url: 
   await api.scripting.executeScript({ target: { tabId }, files: ['content-scripts/content.js'] });
 }
 
+/**
+ * Chrome never injects content scripts into tabs that were already open when
+ * the extension is installed, updated or reloaded, and the scripts it had
+ * injected are orphaned. Re-inject into open tabs the extension can reach.
+ * Without the "tabs" permission Chrome only reports URLs of tabs with host
+ * access, so tabs without a URL are skipped.
+ */
+async function restoreOpenTabScripts(api: BackgroundBrowserApi): Promise<void> {
+  const tabs = await api.tabs.query({});
+  await Promise.all(tabs.map((tab) => tab.id === undefined
+    ? undefined
+    : restorePageScript(api, tab.id, tab.url).catch(() => undefined)));
+}
+
 /** After a reload the page lost the panel; draw it again if the site is still accessible. */
 async function restoreFloatingChat(
   api: BackgroundBrowserApi,
@@ -618,6 +632,12 @@ export function startBackground(
   };
   api.tabs.onUpdated.addListener(onTabUpdated);
   disposers.push(() => api.tabs.onUpdated.removeListener(onTabUpdated));
+
+  const onInstalled = () => {
+    void restoreOpenTabScripts(api).catch(() => undefined);
+  };
+  api.runtime.onInstalled?.addListener(onInstalled);
+  disposers.push(() => api.runtime.onInstalled?.removeListener(onInstalled));
 
   const onActionClicked = (tab: BackgroundTab) => {
     void sidePanels.open(tab).catch(() => undefined);
