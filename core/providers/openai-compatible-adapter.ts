@@ -58,6 +58,21 @@ const defaultClientFactory: OpenAIClientFactory = (options) =>
 
 const IMAGE_GENERATION_TIMEOUT_MS = 300_000;
 
+/**
+ * The SDK appends paths such as `/chat/completions` directly, so a bare origin
+ * (`https://gw.example/`) gets the conventional `/v1`; any explicit path is kept.
+ */
+export function normalizeOpenAIBaseURL(baseURL: string): string {
+  const trimmed = baseURL.trim().replace(/\/+$/u, '');
+  try {
+    const url = new URL(trimmed);
+    if ((url.pathname === '/' || url.pathname === '') && !url.search) return `${url.origin}/v1`;
+  } catch {
+    return trimmed;
+  }
+  return trimmed;
+}
+
 function isImageGenerationModel(model: string): boolean {
   const normalized = model.trim().toLowerCase();
   return normalized.startsWith('gpt-image-') || normalized === 'chatgpt-image-latest';
@@ -109,7 +124,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
   private createClientFor(config: ProviderConfigDraft, apiKey: string): OpenAIClientLike {
     return this.createClient({
       apiKey,
-      baseURL: config.baseURL,
+      baseURL: normalizeOpenAIBaseURL(config.baseURL),
       defaultHeaders: sanitizeCustomHeaders(config.defaultHeaders),
       dangerouslyAllowBrowser: true,
       timeout: config.timeoutMs,

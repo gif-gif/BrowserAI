@@ -78,7 +78,7 @@ For a first-time setup you can simply use the "Connect" card in the side panel. 
 
 - **API format**: "OpenAI compatible" or "Anthropic Messages".
 - **Name**: for example "Team Gateway".
-- **Base URL**: new configurations default to `https://api.openai.com/v1` (the name is empty by default and must be filled in before saving). You can change it to any other OpenAI-compatible Gateway.
+- **Base URL**: new configurations default to `https://api.openai.com/v1` (the name is empty by default and must be filled in before saving). You can change it to any other OpenAI-compatible Gateway. A bare origin such as `https://gw.example.com/` automatically gets `/v1` appended, so `https://gw.example.com/v1` works the same; URLs with any other path are kept as entered.
 - **Model**: click "Fetch models" to load models from the Gateway's `/models` endpoint and pick one from a searchable list, or type a model ID by hand.
 - **API Key**: stored only in local extension storage and never shown back in plain text.
 - **Custom headers**: optional JSON. Protected headers such as `Authorization`, `Content-Type`, `Host`, and `Origin` cannot be overridden.

@@ -78,7 +78,7 @@ npm run zip
 
 - **介面格式**：「OpenAI 相容」或「Anthropic Messages」。
 - **名稱**：例如「團隊 Gateway」。
-- **Base URL**：新設定預設使用 `https://api.openai.com/v1`（名稱預設留空，儲存前需填寫），也可以改成其他 OpenAI 相容的 Gateway。
+- **Base URL**：新設定預設使用 `https://api.openai.com/v1`（名稱預設留空，儲存前需填寫），也可以改成其他 OpenAI 相容的 Gateway。只填網域（如 `https://gw.example.com/`）時會自動補上 `/v1`，填 `https://gw.example.com/v1` 也一樣可用；帶其他路徑的網址保持原樣。
 - **模型**：可點「取得模型」從 Gateway 的 `/models` 介面載入模型，在可搜尋的清單中選擇，也可以直接手動輸入模型 ID。
 - **API Key**：只儲存在本機擴充功能儲存空間中，不會以明文回填。
 - **自訂請求標頭**：選填 JSON；不能覆寫 `Authorization`、`Content-Type`、`Host`、`Origin` 等受保護的標頭。

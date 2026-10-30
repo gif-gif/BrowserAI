@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { OpenAICompatibleAdapter } from '../../core/providers/openai-compatible-adapter';
+import { OpenAICompatibleAdapter, normalizeOpenAIBaseURL } from '../../core/providers/openai-compatible-adapter';
 import type { ProviderConfig } from '../../shared/types/provider';
 import { OPENAI_TEXT_STREAM_CHUNKS } from '../fixtures/openai-stream-chunks';
 import { createFakeOpenAIClientFactory } from '../setup/fake-openai-gateway';
@@ -237,5 +237,20 @@ describe('OpenAICompatibleAdapter', () => {
     ).streamChat(input()));
     expect(fake.clientOptions).toHaveLength(0);
     expect(events.at(-1)).toMatchObject({ type: 'failed', error: { code: 'CONFIG_MISSING' } });
+  });
+
+  it('accepts a gateway root or its /v1 path as the Base URL', async () => {
+    const fake = createFakeOpenAIClientFactory(OPENAI_TEXT_STREAM_CHUNKS);
+    await collect(new OpenAICompatibleAdapter(
+      source({ baseURL: 'https://gw-cf.opentoken.io/' }),
+      fake.factory,
+    ).streamChat(input()));
+    expect(fake.clientOptions[0]?.baseURL).toBe('https://gw-cf.opentoken.io/v1');
+
+    expect(normalizeOpenAIBaseURL('https://gw-cf.opentoken.io')).toBe('https://gw-cf.opentoken.io/v1');
+    expect(normalizeOpenAIBaseURL(' https://gw-cf.opentoken.io/v1/ ')).toBe('https://gw-cf.opentoken.io/v1');
+    expect(normalizeOpenAIBaseURL('http://localhost:11434/')).toBe('http://localhost:11434/v1');
+    expect(normalizeOpenAIBaseURL('https://gw.example/openai/v1')).toBe('https://gw.example/openai/v1');
+    expect(normalizeOpenAIBaseURL('https://gw.example/api/paas/v4')).toBe('https://gw.example/api/paas/v4');
   });
 });
