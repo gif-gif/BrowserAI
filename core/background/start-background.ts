@@ -115,6 +115,20 @@ async function hideFloatingChat(api: BackgroundBrowserApi, services: BackgroundS
   }).catch(() => undefined);
 }
 
+/**
+ * A reload drops scripts injected through activeTab or the side panel. When the
+ * extension already holds host access for the page (site grant, “@” mention
+ * grant, or all-sites access whose dynamic registration Chrome lost), inject the
+ * content script again so page features like the writing assistant launcher
+ * appear without opening the side panel. Never requests a permission; the
+ * content script ignores duplicate injections.
+ */
+async function restorePageScript(api: BackgroundBrowserApi, tabId: number, url: string | undefined): Promise<void> {
+  if (!url || !supportsFloatingChat(url)) return;
+  if (!await api.permissions.contains({ origins: [`${new URL(url).origin}/*`] })) return;
+  await api.scripting.executeScript({ target: { tabId }, files: ['content-scripts/content.js'] });
+}
+
 /** After a reload the page lost the panel; draw it again if the site is still accessible. */
 async function restoreFloatingChat(
   api: BackgroundBrowserApi,
@@ -598,7 +612,9 @@ export function startBackground(
 
   const onTabUpdated = (tabId: number, change: { status?: string }, tab: BackgroundTab) => {
     if (change.status !== 'complete') return;
-    void restoreFloatingChat(api, services, tabId, tab.url ?? tab.pendingUrl).catch(() => undefined);
+    const url = tab.url ?? tab.pendingUrl;
+    void restorePageScript(api, tabId, url).catch(() => undefined);
+    void restoreFloatingChat(api, services, tabId, url).catch(() => undefined);
   };
   api.tabs.onUpdated.addListener(onTabUpdated);
   disposers.push(() => api.tabs.onUpdated.removeListener(onTabUpdated));

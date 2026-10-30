@@ -46,7 +46,7 @@ function createBrowser() {
     sidePanel: { setOptions: vi.fn(async () => undefined), open: vi.fn(async () => undefined) },
     contextMenus: { removeAll: vi.fn(async () => undefined), create: vi.fn(), onClicked: menuClicked },
     alarms: { get: vi.fn(async () => undefined), create: vi.fn(), onAlarm: alarm },
-    permissions: { contains: vi.fn(async () => true), request: vi.fn(async () => true), remove: vi.fn(async () => true) },
+    permissions: { contains: vi.fn<(permission: { origins: string[] }) => Promise<boolean>>(async () => true), request: vi.fn(async () => true), remove: vi.fn(async () => true) },
   } satisfies BackgroundBrowserApi;
   return { browser, runtimeMessage, runtimeConnect, actionClicked, tabRemoved, tabUpdated };
 }
@@ -233,6 +233,24 @@ describe('background lifecycle and router handlers', () => {
     tabUpdated.listeners.forEach((listener) => listener(7, { status: 'complete' }, { id: 7, url: 'https://example.test/article' }));
     await Promise.resolve();
     expect(browser.tabs.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('re-injects the content script after a reload only on sites with host access', async () => {
+    const { browser, tabUpdated } = createBrowser();
+    const services = createServices();
+    browser.permissions.contains.mockImplementation(async (permission: { origins: string[] }) => permission.origins.includes('https://granted.test/*'));
+    startBackground(browser, { services, migrate: vi.fn(), reconcile: vi.fn(), cleanup: vi.fn() });
+
+    tabUpdated.listeners.forEach((listener) => listener(7, { status: 'complete' }, { id: 7, url: 'https://granted.test/form' }));
+    await vi.waitFor(() => expect(browser.scripting.executeScript).toHaveBeenCalledWith({ target: { tabId: 7 }, files: ['content-scripts/content.js'] }));
+
+    vi.mocked(browser.scripting.executeScript).mockClear();
+    tabUpdated.listeners.forEach((listener) => listener(8, { status: 'complete' }, { id: 8, url: 'https://other.test/form' }));
+    tabUpdated.listeners.forEach((listener) => listener(9, { status: 'complete' }, { id: 9, url: 'chrome://settings' }));
+    tabUpdated.listeners.forEach((listener) => listener(10, { status: 'loading' }, { id: 10, url: 'https://granted.test/form' }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(browser.permissions.request).not.toHaveBeenCalled();
+    expect(browser.scripting.executeScript).not.toHaveBeenCalled();
   });
 
   it('refuses the floating chat on pages scripts cannot reach', async () => {
