@@ -34,10 +34,11 @@ The project uses React, TypeScript, WXT, and the official OpenAI and Anthropic J
 
 ### Tools
 
-- Quick actions: the bottom-left of a new chat shows Summarize, Explain, Translate, and Analyze tech stack by default. In Settings → "General" → "Shortcuts" you can replace them with up to 4 skills from "Your skills", or restore the defaults.
+- Quick actions: the bottom-left of a new chat shows Summarize, Explain, Translate, and Analyze tech stack by default. In Settings → "General" → "Shortcuts" you can replace them with up to 4 skills from "Your skills", or restore the defaults. Once a chat has messages, the same buttons are available from "＋" → "Shortcuts", where "Manage shortcuts" opens Settings.
 - Skills: type `/` to pick a skill; its instructions are sent along with your message. You can create your own skills, and while editing a skill's instructions you can undo, redo, or click "Improve with AI". "Browsing skills" in Settings includes the 49 skills from Chrome's "Ask Gemini" (Writing, Entertainment, Learning, Understanding, Research, Shopping), using Chrome's original wording in both Chinese and English, plus 4 skills of this extension's own: Summarize, Explain, Translate, and Analyze tech stack. Any of them can be added to "Your skills" with one click.
 - Act on page: turn on "Act on page" from "＋" and the AI can click, type, or select elements on the current page for that one message; it turns off automatically after sending. The AI will not enter passwords, upload files, make payments, delete data, or publish content; you need to do those yourself.
-- AI writing assistant: when you type in a multi-line text box on a web page, a writing assistant icon appears in its bottom-right corner. Choose a tone and add context to polish your text, then insert it back into the text box with one click. Text is sent only when you click "Polish writing", and the icon can be turned off in Settings.
+- AI writing assistant: when you type in a multi-line text box on a web page, a writing assistant icon appears in its bottom-right corner. Pick a tone (Polish, Professional, Friendly, Concise) and a model (searchable) from the two drop-downs side by side, add context, and polish your text, then insert it back into the text box with one click. Text is sent only when you click "Polish writing", and the icon can be turned off in Settings. On sites the extension already has access to, the icon comes back by itself after a page refresh or an extension reload, without opening the side panel first.
+- Writing assistant in the composer: in the side panel, choose "＋" → "AI Writing Assistant" to polish your current draft with a chosen tone and model. Copy the result, or click "Use in chat" to replace the draft; nothing is sent automatically.
 
 ### Settings and appearance
 
@@ -111,7 +112,7 @@ The adapter uses the official Anthropic SDK and sends requests to `{baseURL}/v1/
 - Page text and selections stay in memory until you send a message and are not written to chat history.
 - The API Key is stored in the trusted context of `chrome.storage.local`. Content scripts have no message interface for reading it.
 - Gateway requests are sent by the Background and only to origins you have explicitly granted.
-- Automatic access to all sites requires separately granting the optional `http://*/*` and `https://*/*` permissions. Turning it off unregisters the dynamic content script.
+- Automatic access to all sites requires separately granting the optional `http://*/*` and `https://*/*` permissions. Turning it off unregisters the dynamic content script. After the extension is reloaded or updated, the page script is restored on sites it already has access to, without asking for new permissions; other sites still need one click on the extension icon or opening the side panel.
 - Sharing other tabs with `@` requires the optional `tabs` permission, requested together with access to all sites the first time. The `favicon` permission is used only to show those tabs' site icons.
 - Uploaded documents are parsed into text locally and screenshots are cropped locally. Both are uploaded only when you send a message.
 - Floating chat needs access to the current site and asks for it the first time. To embed it in the page, `floating.html` is declared in `web_accessible_resources`. It only shows content in the tab where you opened floating chat; embedded by any other page it is blank, and page scripts cannot read its contents.
