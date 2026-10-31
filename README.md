@@ -51,7 +51,7 @@
 
 ## 安装
 
-要求 Chrome 114+、Node.js 20.19+。
+需要较新版本的 Chrome 和 Node.js。
 
 ```bash
 npm ci

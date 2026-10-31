@@ -51,7 +51,7 @@ The project uses React, TypeScript, WXT, and the official OpenAI and Anthropic J
 
 ## Installation
 
-Requires Chrome 114+ and Node.js 20.19+.
+Requires a recent version of Chrome and Node.js.
 
 ```bash
 npm ci
