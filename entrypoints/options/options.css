@@ -283,7 +283,7 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
 .connection-status--error { color: var(--danger); border-color: var(--danger-border); background: var(--danger-bg); }
 .field-select .ui-select__label { color: var(--label-ink); font-size: 13px; font-weight: 700; }
 .field-group > label, .field-label-row label { font-size: 13px; font-weight: 700; color: var(--label-ink); }
-.field-label-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.field-label-row { display: flex; align-items: center; justify-content: flex-start; gap: 8px; }
 .field-hint { color: var(--muted); font-size: 12px; line-height: 1.5; }
 .field-error { color: var(--danger); font-size: 12px; font-weight: 650; }
 .text-button { border: 0; background: transparent; min-height: 34px; padding: 4px 6px; color: var(--blue); font-weight: 650; }
