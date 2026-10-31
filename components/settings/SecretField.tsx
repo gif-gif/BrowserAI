@@ -15,17 +15,16 @@ export function SecretField({ value, onChange, hasStoredSecret, disabled, onRemo
         <label htmlFor="api-key">{messages.apiKey}</label>
         {hasStoredSecret && <span className="status-badge status-badge--success">{messages.configured}</span>}
       </div>
-      <input
-        id="api-key"
-        type="password"
-        autoComplete="new-password"
-        value={value}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={hasStoredSecret ? messages.keepSecretPlaceholder : 'Gateway API Key'}
-      />
-      <div className="field-help-row">
-        <span>{messages.secretStorageHint}</span>
+      <div className={hasStoredSecret ? 'secret-input-row' : undefined}>
+        <input
+          id="api-key"
+          type="password"
+          autoComplete="new-password"
+          value={value}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={hasStoredSecret ? messages.keepSecretPlaceholder : 'Gateway API Key'}
+        />
         {hasStoredSecret && (
           <button className="remove-secret-button" type="button" disabled={disabled} onClick={onRemove}>
             <svg className="remove-secret-button__icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -35,6 +34,7 @@ export function SecretField({ value, onChange, hasStoredSecret, disabled, onRemo
           </button>
         )}
       </div>
+      <span className="field-hint">{messages.secretStorageHint}</span>
     </div>
   );
 }

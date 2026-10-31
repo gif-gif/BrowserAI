@@ -219,7 +219,7 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .form-grid--three { grid-template-columns: repeat(3, 1fr); margin-top: 18px; }
 .field-group { display: grid; gap: 8px; min-width: 0; }
-.model-input-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: stretch; }
+.model-input-row, .secret-input-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: stretch; }
 .model-combobox { position: relative; min-width: 0; }
 .model-combobox--has-models > input { padding-right: 46px; }
 .model-combobox__toggle { position: absolute; top: 1px; right: 1px; bottom: 1px; width: 44px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 0 11px 11px 0; color: var(--muted); background: transparent; }
@@ -283,8 +283,8 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
 .connection-status--error { color: var(--danger); border-color: var(--danger-border); background: var(--danger-bg); }
 .field-select .ui-select__label { color: var(--label-ink); font-size: 13px; font-weight: 700; }
 .field-group > label, .field-label-row label { font-size: 13px; font-weight: 700; color: var(--label-ink); }
-.field-label-row, .field-help-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.field-help-row, .field-hint { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.field-label-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.field-hint { color: var(--muted); font-size: 12px; line-height: 1.5; }
 .field-error { color: var(--danger); font-size: 12px; font-weight: 650; }
 .text-button { border: 0; background: transparent; min-height: 34px; padding: 4px 6px; color: var(--blue); font-weight: 650; }
 .text-button--danger { color: var(--danger); }
@@ -354,10 +354,9 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
   .card-heading, .form-actions { align-items: stretch; flex-direction: column; }
   .gateway-action-buttons { width: 100%; }
   .gateway-action-buttons button { flex: 1 1 0; }
-  .model-input-row { grid-template-columns: 1fr; }
-  .model-fetch-button { width: 100%; }
+  .model-input-row, .secret-input-row { grid-template-columns: 1fr; }
+  .model-fetch-button, .remove-secret-button { width: 100%; justify-content: center; }
   .primary-button { width: 100%; }
-  .field-help-row { align-items: flex-start; flex-direction: column; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
