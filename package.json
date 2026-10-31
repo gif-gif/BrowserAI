@@ -3,7 +3,7 @@
   "description": "Gemini-inspired Chrome Side Panel for OpenAI-compatible AI Gateways",
   "private": true,
   "license": "MIT",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "scripts": {
     "dev": "wxt",
