@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   claimContentScriptInstance,
   releaseContentScriptInstance,
   resolveWritingAssistantPreferences,
   resolveWritingLocale,
+  watchForOrphanedScript,
 } from '../../../entrypoints/content';
 
 describe('content script instance guard', () => {
@@ -13,6 +14,28 @@ describe('content script instance guard', () => {
     expect(claimContentScriptInstance(scope)).toBe(false);
     releaseContentScriptInstance(scope);
     expect(claimContentScriptInstance(scope)).toBe(true);
+  });
+
+  it('tears down on the first interaction after the extension is reloaded, before page features see it', () => {
+    let orphaned = false;
+    const isOrphaned = vi.fn(() => orphaned);
+    const pageFeature = vi.fn();
+    document.addEventListener('focusin', pageFeature, true);
+    watchForOrphanedScript(window, isOrphaned);
+
+    document.body.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    expect(isOrphaned).toHaveBeenCalledTimes(1);
+
+    orphaned = true;
+    const order: string[] = [];
+    isOrphaned.mockImplementation(() => { order.push('check'); return true; });
+    pageFeature.mockImplementation(() => order.push('feature'));
+    document.body.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    expect(order).toEqual(['check', 'feature']);
+
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    expect(isOrphaned).toHaveBeenCalledTimes(2);
+    document.removeEventListener('focusin', pageFeature, true);
   });
 
   it('normalizes writing assistant preferences received from the trusted background', () => {

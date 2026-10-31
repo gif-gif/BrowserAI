@@ -103,6 +103,25 @@ export function releaseContentScriptInstance(scope: ContentScriptScope): void {
   delete scope[CONTENT_SCRIPT_INSTANCE];
 }
 
+const ORPHAN_CHECK_EVENTS = ['pointerdown', 'focusin', 'keydown'] as const;
+
+/**
+ * Reinstalling, updating or reloading the extension leaves this script running in
+ * pages that were already open, cut off from the extension. Chrome does not tell
+ * it, so check on every interaction (window capture runs before the page features'
+ * own listeners) and tear down before an orphaned launcher or panel can be used.
+ */
+export function watchForOrphanedScript(target: Window, isOrphaned: () => boolean): () => void {
+  const check = () => {
+    if (isOrphaned()) stop();
+  };
+  const stop = () => {
+    for (const type of ORPHAN_CHECK_EVENTS) target.removeEventListener(type, check, true);
+  };
+  for (const type of ORPHAN_CHECK_EVENTS) target.addEventListener(type, check, true);
+  return stop;
+}
+
 interface ContentCommandHandlerOptions {
   document: Document;
   tabId: number;
@@ -372,6 +391,8 @@ export default defineContentScript({
       }
     };
     browser.runtime.onMessage.addListener(onMessage);
+    // Reading ctx.isInvalid runs every onInvalidated cleanup below once the extension is gone.
+    const stopOrphanWatch = watchForOrphanedScript(window, () => ctx.isInvalid);
     // The selected-text "Ask AI" bubble is intentionally dormant for now.
     // Keep the launcher hidden until its saved preference has loaded so disabled
     // users never see a brief icon flash during content-script startup.
@@ -383,6 +404,7 @@ export default defineContentScript({
     browser.storage.onChanged.addListener(onStorageChanged);
     colorScheme?.addEventListener?.('change', onColorSchemeChanged);
     ctx.onInvalidated(() => {
+      stopOrphanWatch();
       colorScheme?.removeEventListener?.('change', onColorSchemeChanged);
       browser.runtime.onMessage.removeListener(onMessage);
       browser.storage.onChanged.removeListener(onStorageChanged);
