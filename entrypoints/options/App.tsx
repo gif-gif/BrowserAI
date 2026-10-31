@@ -40,7 +40,7 @@ interface AppProps {
 }
 
 interface GatewayPermissionsApi {
-  request(permissions: { origins: string[] }): Promise<boolean>;
+  request(permissions: { permissions?: 'tabs'[]; origins: string[] }): Promise<boolean>;
 }
 
 function sectionFromHash(): SettingsSection {
@@ -157,8 +157,8 @@ export default function App({
 
     // permissions.request 必须直接发生在按钮点击的用户手势中。
     // 不要在它之前添加 await，也不要把请求转发到 Background Service Worker。
-    // 与 Gateway 一起申请所有网站访问，页面功能在新旧页面上都能直接使用。
-    const granted = await gatewayPermissions.request({ origins: [originPattern, ...ALL_SITES_ORIGINS] });
+    // 与 Gateway 一起申请所有网站访问和 tabs，页面功能与“@”标签页在新旧页面上都能直接使用。
+    const granted = await gatewayPermissions.request({ permissions: ['tabs'], origins: [originPattern, ...ALL_SITES_ORIGINS] });
     if (!granted) {
       throw new AppError('HOST_PERMISSION_REQUIRED', '需要授权：请允许 Chrome 访问该 Gateway 后重试。');
     }

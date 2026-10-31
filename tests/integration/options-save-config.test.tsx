@@ -99,7 +99,7 @@ describe('Options Gateway actions', () => {
     await user.click(screen.getByRole('button', { name: '拉取模型' }));
     await screen.findByText('已拉取 2 个模型，请从候选列表选择或继续手动输入。');
 
-    expect(request).toHaveBeenCalledWith({ origins: ['https://api.openai.com/*', 'http://*/*', 'https://*/*'] });
+    expect(request).toHaveBeenCalledWith({ permissions: ['tabs'], origins: ['https://api.openai.com/*', 'http://*/*', 'https://*/*'] });
     expect(request.mock.invocationCallOrder[0]!).toBeLessThan(fake.client.send.mock.invocationCallOrder[1]!);
     expect(fake.commands.map((command) => command.type)).toEqual(['GET_PROVIDER_SETTINGS', 'LIST_PROVIDER_MODELS']);
   });
@@ -114,7 +114,7 @@ describe('Options Gateway actions', () => {
     await user.click(screen.getByRole('button', { name: '测试网关' }));
     await screen.findByText('连接成功 · 42 ms');
 
-    expect(request).toHaveBeenCalledWith({ origins: ['https://api.openai.com/*', 'http://*/*', 'https://*/*'] });
+    expect(request).toHaveBeenCalledWith({ permissions: ['tabs'], origins: ['https://api.openai.com/*', 'http://*/*', 'https://*/*'] });
     expect(request.mock.invocationCallOrder[0]!).toBeLessThan(fake.client.send.mock.invocationCallOrder[1]!);
     expect(fake.commands.map((command) => command.type)).toEqual(['GET_PROVIDER_SETTINGS', 'TEST_PROVIDER_DRAFT']);
   });
@@ -133,7 +133,7 @@ describe('Options Gateway actions', () => {
     expect(status.nextElementSibling).toHaveClass('form-actions');
     expect(screen.getByRole('button', { name: '已保存' })).toHaveClass('primary-button--saved');
 
-    expect(request).toHaveBeenCalledWith({ origins: ['https://api.openai.com/*', 'http://*/*', 'https://*/*'] });
+    expect(request).toHaveBeenCalledWith({ permissions: ['tabs'], origins: ['https://api.openai.com/*', 'http://*/*', 'https://*/*'] });
     expect(request.mock.invocationCallOrder[0]!).toBeLessThan(fake.client.send.mock.invocationCallOrder[1]!);
     expect(fake.commands.map((command) => command.type)).toEqual(['GET_PROVIDER_SETTINGS', 'SAVE_PROVIDER_CONFIG']);
   });

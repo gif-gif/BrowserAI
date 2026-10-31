@@ -1092,7 +1092,7 @@ function createDefaultDependencies(floatingTabId?: number): SidePanelDependencie
   const mentionAccess = { permissions: ['tabs' as const], origins: MENTION_SITE_ORIGINS };
   // Checked up front because the request in ensureAllSitesAccess cannot wait on an await.
   let allSitesAccess: boolean | 'denied' | undefined;
-  void browser.permissions.contains({ origins: MENTION_SITE_ORIGINS })
+  void browser.permissions.contains(mentionAccess)
     .then((granted) => { allSitesAccess = granted; })
     .catch(() => undefined);
   const queryWindowTabs = async () => {
@@ -1160,15 +1160,16 @@ function createDefaultDependencies(floatingTabId?: number): SidePanelDependencie
       let originPattern: string;
       try { originPattern = analyzeGatewayBaseUrl(baseURL).originPattern; } catch { return Promise.resolve(false); }
       // permissions.request must be called synchronously from the user gesture.
-      // All-sites access is asked for in the same prompt so page features work on new and open pages.
-      return browser.permissions.request({ origins: [originPattern, ...MENTION_SITE_ORIGINS] });
+      // All-sites and "tabs" access are asked for in the same prompt so page features
+      // and “@” tab mentions work on new and open pages without another prompt.
+      return browser.permissions.request({ permissions: mentionAccess.permissions, origins: [originPattern, ...MENTION_SITE_ORIGINS] });
     },
     ensureAllSitesAccess() {
       if (allSitesAccess !== false) return;
       // Ask at most once per panel; a denial must not prompt on every message.
       allSitesAccess = undefined;
       // permissions.request must be called synchronously from the user gesture.
-      void browser.permissions.request({ origins: MENTION_SITE_ORIGINS })
+      void browser.permissions.request(mentionAccess)
         .then((granted) => { allSitesAccess = granted ? true : 'denied'; })
         .catch(() => { allSitesAccess = 'denied'; });
     },
