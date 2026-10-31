@@ -282,19 +282,6 @@ export function GatewayForm({
       </div>
 
       <div className="field-group">
-        <label htmlFor="gateway-model">{messages.modelName}</label>
-        <div className="model-input-row">
-          <ModelCombobox id="gateway-model" value={model} models={models} disabled={busy} invalid={Boolean(errors.model)} onChange={setModel} />
-          <button className="secondary-button model-fetch-button" type="button" disabled={busy || !onListModels} onClick={() => void handleListModels()}>
-            {busyAction === 'models' ? <LoadingSpinner /> : <ModelsIcon />}
-            <span>{busyAction === 'models' ? messages.fetchingModels : messages.fetchModels}</span>
-          </button>
-        </div>
-        {modelStatus && <span className="field-hint" role="status">{modelStatus}</span>}
-        {errors.model && <span className="field-error">{errors.model}</span>}
-      </div>
-
-      <div className="field-group">
         <label htmlFor="gateway-url">{messages.baseUrl}</label>
         <input id="gateway-url" inputMode="url" value={baseURL} disabled={busy} onChange={(event) => { setBaseURL(event.target.value); setAcknowledged(false); setModels([]); setModelStatus(undefined); setTestStatus(undefined); }} placeholder={DEFAULT_PROVIDER_BASE_URLS[providerType]} aria-invalid={Boolean(errors.baseURL)} />
         {errors.baseURL && <span className="field-error">{errors.baseURL}</span>}
@@ -312,6 +299,19 @@ export function GatewayForm({
       </div>
 
       <SecretField value={apiKey} onChange={setApiKey} hasStoredSecret={hasApiKey} disabled={busy} onRemove={removeSecret} />
+
+      <div className="field-group">
+        <label htmlFor="gateway-model">{messages.modelName}</label>
+        <div className="model-input-row">
+          <ModelCombobox id="gateway-model" value={model} models={models} disabled={busy} invalid={Boolean(errors.model)} onChange={setModel} />
+          <button className="secondary-button model-fetch-button" type="button" disabled={busy || !onListModels} onClick={() => void handleListModels()}>
+            {busyAction === 'models' ? <LoadingSpinner /> : <ModelsIcon />}
+            <span>{busyAction === 'models' ? messages.fetchingModels : messages.fetchModels}</span>
+          </button>
+        </div>
+        {modelStatus && <span className="field-hint" role="status">{modelStatus}</span>}
+        {errors.model && <span className="field-error">{errors.model}</span>}
+      </div>
 
       <div className="field-group">
         <label htmlFor="custom-headers">{messages.customHeadersLabel}</label>
