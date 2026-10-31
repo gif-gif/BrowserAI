@@ -235,7 +235,7 @@ describe('background lifecycle and router handlers', () => {
     expect(browser.tabs.sendMessage).not.toHaveBeenCalled();
   });
 
-  it('re-injects the content script after a reload only on sites with host access', async () => {
+  it('re-injects the content script after a reload without requesting access', async () => {
     const { browser, tabUpdated } = createBrowser();
     const services = createServices();
     browser.permissions.contains.mockImplementation(async (permission: { origins: string[] }) => permission.origins.includes('https://granted.test/*'));
@@ -244,8 +244,14 @@ describe('background lifecycle and router handlers', () => {
     tabUpdated.listeners.forEach((listener) => listener(7, { status: 'complete' }, { id: 7, url: 'https://granted.test/form' }));
     await vi.waitFor(() => expect(browser.scripting.executeScript).toHaveBeenCalledWith({ target: { tabId: 7 }, files: ['content-scripts/content.js'] }));
 
+    // No host access: a same-origin reload can still be covered by an activeTab
+    // grant, so the injection is attempted and a rejection is swallowed.
     vi.mocked(browser.scripting.executeScript).mockClear();
+    vi.mocked(browser.scripting.executeScript).mockRejectedValueOnce(new Error('Cannot access contents of the page'));
     tabUpdated.listeners.forEach((listener) => listener(8, { status: 'complete' }, { id: 8, url: 'https://other.test/form' }));
+    await vi.waitFor(() => expect(browser.scripting.executeScript).toHaveBeenCalledWith({ target: { tabId: 8 }, files: ['content-scripts/content.js'] }));
+
+    vi.mocked(browser.scripting.executeScript).mockClear();
     tabUpdated.listeners.forEach((listener) => listener(9, { status: 'complete' }, { id: 9, url: 'chrome://settings' }));
     tabUpdated.listeners.forEach((listener) => listener(10, { status: 'loading' }, { id: 10, url: 'https://granted.test/form' }));
     await new Promise((resolve) => setTimeout(resolve, 0));
