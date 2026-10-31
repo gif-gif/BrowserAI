@@ -62,7 +62,7 @@ export function createBackgroundServices(api: BackgroundBrowserApi): BackgroundS
   const sessions = new TabSessionService(conversations, bindings, getProviderDefaults);
   const extractPage = async (tabId: number) => {
     const currentPreferences = await preferences.get();
-    const extracted = await content.send<ExtractedPageContext>(tabId, {
+    const request = () => content.send<ExtractedPageContext>(tabId, {
       version: 1,
       requestId: globalThis.crypto?.randomUUID?.() ?? `context-${Date.now()}`,
       type: 'EXTRACT_CONTEXT',
@@ -71,6 +71,20 @@ export function createBackgroundServices(api: BackgroundBrowserApi): BackgroundS
         documentCharacters: currentPreferences.documentContextCharacters,
       },
     });
+    let extracted: ExtractedPageContext;
+    try {
+      extracted = await request();
+    } catch (error) {
+      // The side panel can ask for the page before the content script injected
+      // on open is listening (or after Chrome dropped it), which leaves no
+      // receiver. Inject it and ask once more; a second failure is reported.
+      try {
+        await api.scripting.executeScript({ target: { tabId }, files: ['content-scripts/content.js'] });
+      } catch {
+        throw error;
+      }
+      extracted = await request();
+    }
     return { ...extracted, tabId };
   };
   const analyzeTechStack = (tabId: number) => content.send<PageTechStackEvidence>(tabId, {
