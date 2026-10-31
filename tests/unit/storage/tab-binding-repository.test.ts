@@ -8,7 +8,7 @@ describe('TabBindingRepository', () => {
     const storage = new FakeStorageArea();
     const conversations = new ConversationRepository(storage);
     const bindings = new TabBindingRepository(storage);
-    await conversations.save({ id: 'c1', title: 'c1', messages: [], providerId: 'p1', model: 'm', promptVersion: 'v1', pinned: false, createdAt: 1, updatedAt: 1 });
+    await conversations.save({ id: 'c1', title: 'c1', messages: [], model: 'm', promptVersion: 'v1', pinned: false, createdAt: 1, updatedAt: 1 });
     await bindings.save({ tabId: 1, conversationId: 'c1', pageUrl: 'https://a.test', navigationKey: 'n1', updatedAt: 1 });
     await bindings.remove(1);
     expect(await bindings.get(1)).toBeUndefined();

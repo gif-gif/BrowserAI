@@ -42,7 +42,7 @@ function activeState(messages: ActiveTabState['conversation']['messages'] = []):
       id: 'conversation-1',
       title: '页面对话',
       messages,
-      providerId: 'provider-1',
+      
       model: 'gpt-test',
       promptVersion: 'v1',
       pinned: false,

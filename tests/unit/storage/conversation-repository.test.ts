@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { ConversationRepository } from '../../../storage/conversation-repository';
+import { STORAGE_KEYS } from '../../../shared/constants/storage-keys';
+import { runMigrations } from '../../../storage/migrations';
 import { FakeStorageArea } from '../../setup/fake-storage';
 
-const conversation = (id: string, updatedAt: number) => ({ id, title: id, messages: [], providerId: 'p1', model: 'm1', promptVersion: 'v1', pinned: false, createdAt: updatedAt, updatedAt });
+const conversation = (id: string, updatedAt: number) => ({ id, title: id, messages: [], model: 'm1', promptVersion: 'v1', pinned: false, createdAt: updatedAt, updatedAt });
 
 describe('ConversationRepository', () => {
   it('lists newest conversations first and supports model, pin, and delete updates', async () => {
@@ -16,5 +18,15 @@ describe('ConversationRepository', () => {
     expect((await repo.get('old'))?.pinned).toBe(true);
     await repo.delete('new');
     expect(await repo.get('new')).toBeUndefined();
+  });
+
+  it('drops the per-conversation Gateway in the v8 migration and keeps the chosen model', async () => {
+    const storage = new FakeStorageArea();
+    await storage.set(STORAGE_KEYS.migrations, 7);
+    await storage.set(STORAGE_KEYS.conversations, [{ ...conversation('c1', 1), providerId: '', model: 'm2' }]);
+    await runMigrations(storage);
+    const [migrated] = await new ConversationRepository(storage).list();
+    expect(migrated).not.toHaveProperty('providerId');
+    expect(migrated).toMatchObject({ id: 'c1', model: 'm2' });
   });
 });

@@ -14,7 +14,7 @@ function conversation(id: string, ageDays: number, pinned = false): Conversation
     id,
     title: id,
     messages: [],
-    providerId: 'provider-1',
+    
     model: 'model-1',
     promptVersion: 'v1',
     pinned,

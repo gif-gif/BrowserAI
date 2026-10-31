@@ -15,7 +15,7 @@ function setup(extract = vi.fn(async (tabId: number, url: string, navigationKey:
   let sequence = 0;
   const sessions = new TabSessionService(
     new ConversationRepository(storage), new TabBindingRepository(storage),
-    async () => ({ providerId: 'p1', model: 'm1' }),
+    async () => ({ model: 'm1' }),
     { createId: () => `c-${++sequence}`, now: () => sequence },
   );
   const snapshots = new ContextSnapshotService();

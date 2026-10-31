@@ -58,10 +58,7 @@ export function createBackgroundServices(api: BackgroundBrowserApi): BackgroundS
     new AnthropicMessagesAdapter(providerConfigs),
   ]);
   const streams = new ActiveStreamRegistry();
-  const getProviderDefaults = async () => {
-    const config = (await providerConfigs.list())[0];
-    return { providerId: config?.id ?? '', model: config?.model ?? '' };
-  };
+  const getProviderDefaults = async () => ({ model: (await providerConfigs.getActive())?.model ?? '' });
   const sessions = new TabSessionService(conversations, bindings, getProviderDefaults);
   const extractPage = async (tabId: number) => {
     const currentPreferences = await preferences.get();
@@ -88,8 +85,7 @@ export function createBackgroundServices(api: BackgroundBrowserApi): BackgroundS
     conversations,
     snapshots,
     streams,
-    getConfig: (providerId) => providerConfigs.get(providerId),
-    getDefaultConfig: async () => (await providerConfigs.list())[0],
+    getConfig: () => providerConfigs.getActive(),
     getSecret: (providerId) => providerConfigs.getSecretForBackground(providerId),
     hasGatewayPermission: async (config) => api.permissions.contains({
       origins: [analyzeGatewayBaseUrl(config.baseURL).originPattern],

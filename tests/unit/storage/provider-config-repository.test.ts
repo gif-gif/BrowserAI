@@ -31,4 +31,13 @@ describe('ProviderConfigRepository', () => {
     expect(await repo.getSecretForBackground('p1')).toBeUndefined();
     expect(await repo.getSecretForBackground('p2')).toBe('other');
   });
+
+  it('returns the one Gateway from settings as the active config', async () => {
+    const repo = new ProviderConfigRepository(new FakeStorageArea(), () => 100);
+    expect(await repo.getActive()).toBeUndefined();
+    await repo.save(draft, 'secret');
+    await repo.save({ ...draft, model: 'gpt-next' });
+    expect(await repo.list()).toHaveLength(1);
+    expect(await repo.getActive()).toMatchObject({ id: 'p1', model: 'gpt-next' });
+  });
 });

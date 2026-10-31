@@ -6,7 +6,7 @@ import { DEFAULT_APPEARANCE, isAppearancePreference } from '../shared/theme/appe
 import { DEFAULT_FLOATING_CHAT_LAYOUT, isFloatingChatLayout } from '../shared/types/floating-chat';
 import { PROVIDER_ENDPOINT_MODES, PROVIDER_TYPES, type ProviderType } from '../shared/types/provider';
 
-const VERSION = 7;
+const VERSION = 8;
 
 export async function runMigrations(storage: StorageArea): Promise<void> {
   const current = (await storage.get<number>(STORAGE_KEYS.migrations)) ?? 0;
@@ -55,6 +55,18 @@ export async function runMigrations(storage: StorageArea): Promise<void> {
     // v7: the floating chat moved into the page; remember where the user put it and how big it is.
     const layout = await storage.get(STORAGE_KEYS.floatingChatLayout);
     if (!isFloatingChatLayout(layout)) await storage.set(STORAGE_KEYS.floatingChatLayout, DEFAULT_FLOATING_CHAT_LAYOUT);
+  }
+  if (current < 8) {
+    // v8: every conversation uses the one Gateway in settings, so conversations no longer record their own.
+    const conversations = await storage.get<unknown>(STORAGE_KEYS.conversations);
+    if (Array.isArray(conversations)) {
+      await storage.set(STORAGE_KEYS.conversations, conversations.map((conversation: unknown) => {
+        if (!conversation || typeof conversation !== 'object') return conversation;
+        const rest = { ...conversation as Record<string, unknown> };
+        delete rest.providerId;
+        return rest;
+      }));
+    }
   }
   await storage.set(STORAGE_KEYS.migrations, VERSION);
 }

@@ -19,7 +19,7 @@ function port(): ChatStreamPort {
 }
 
 function conversation(id: string, updatedAt: number, pinned = false): Conversation {
-  return { id, title: `对话 ${id}`, messages: [], providerId: 'p1', model: 'm1', promptVersion: 'v1', pinned, createdAt: 1, updatedAt };
+  return { id, title: `对话 ${id}`, messages: [], model: 'm1', promptVersion: 'v1', pinned, createdAt: 1, updatedAt };
 }
 
 function active(current: Conversation): ActiveTabState {

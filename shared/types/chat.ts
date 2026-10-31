@@ -95,7 +95,7 @@ export interface Conversation {
   id: string;
   title: string;
   messages: ChatMessage[];
-  providerId: string;
+  /** Model picked for this conversation; empty means the Gateway default. The Gateway itself always comes from settings. */
   model: string;
   promptVersion: string;
   pinned: boolean;

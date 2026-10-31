@@ -63,7 +63,6 @@ function createServices(): BackgroundServices {
     id: 'c1',
     title: 'First',
     messages: [{ id: 'm1', role: 'user', content: 'Hello', status: 'complete', createdAt: 1 }],
-    providerId: 'p1',
     model: 'm1',
     promptVersion: 'v1',
     pinned: false,
@@ -71,12 +70,12 @@ function createServices(): BackgroundServices {
     updatedAt: 2,
   };
   const empty = {
-    id: 'c-empty', title: 'Empty', messages: [], providerId: 'p1', model: 'm1', promptVersion: 'v1', pinned: false, createdAt: 2, updatedAt: 3,
+    id: 'c-empty', title: 'Empty', messages: [], model: 'm1', promptVersion: 'v1', pinned: false, createdAt: 2, updatedAt: 3,
   };
   return {
     storage: { get: vi.fn(), set: vi.fn(), remove: vi.fn() },
     providerConfigs: {
-      list: vi.fn(async () => []), get: vi.fn(), save: vi.fn(), getSecretForBackground: vi.fn(), removeSecret: vi.fn(), delete: vi.fn(),
+      list: vi.fn(async () => []), get: vi.fn(), getActive: vi.fn(), save: vi.fn(), getSecretForBackground: vi.fn(), removeSecret: vi.fn(), delete: vi.fn(),
     },
     conversations: {
       list: vi.fn(async () => [empty, first]), get: vi.fn(), save: vi.fn(), setPinned: vi.fn(), setModel: vi.fn(), delete: vi.fn(),
@@ -450,7 +449,7 @@ describe('background lifecycle and router handlers', () => {
       tabId: 7, conversationId: 'c1', pageUrl: 'https://example.test/article', navigationKey: 'nav-1', updatedAt: 1,
     });
     const replacement = {
-      id: 'replacement', title: 'New', messages: [], providerId: 'p1', model: 'm1', promptVersion: 'v1', pinned: false, createdAt: 3, updatedAt: 3,
+      id: 'replacement', title: 'New', messages: [], model: 'm1', promptVersion: 'v1', pinned: false, createdAt: 3, updatedAt: 3,
     };
     vi.mocked(services.sessions.createNew).mockResolvedValue(replacement);
     vi.mocked(services.activeTabs.open).mockResolvedValue({
@@ -580,13 +579,13 @@ describe('background lifecycle and router handlers', () => {
     const { browser, runtimeMessage } = createBrowser();
     const services = createServices();
     const updated = {
-      id: 'c1', title: 'First', messages: [], providerId: 'p1', model: 'm2', promptVersion: 'v1', pinned: false, createdAt: 1, updatedAt: 3,
+      id: 'c1', title: 'First', messages: [], model: 'm2', promptVersion: 'v1', pinned: false, createdAt: 1, updatedAt: 3,
     };
     vi.mocked(services.bindings.get).mockResolvedValue({
       tabId: 7, conversationId: 'c1', pageUrl: 'https://example.test/article', navigationKey: 'nav-1', updatedAt: 1,
     });
     vi.mocked(services.conversations.setModel).mockResolvedValue(updated);
-    vi.mocked(services.providerConfigs.get).mockResolvedValue({
+    vi.mocked(services.providerConfigs.getActive).mockResolvedValue({
       id: 'p1', name: 'Gateway', type: 'openai-compatible', baseURL: 'https://gateway.example.test/v1', model: 'm1',
       endpointMode: 'chat-completions', defaultHeaders: {}, timeoutMs: 30_000, stream: true, createdAt: 1, updatedAt: 1,
     });

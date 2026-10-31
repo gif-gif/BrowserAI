@@ -9,7 +9,7 @@ import type { ProviderAdapter } from '../../core/providers/provider-adapter';
 describe('background chat stream integration', () => {
   it('keeps concurrent requests attached to their own assistant messages', async () => {
     const storage = new FakeStorageArea(); const conversations = new ConversationRepository(storage);
-    for (const id of ['c1', 'c2']) await conversations.save({ id, title: id, messages: [], providerId: 'p1', model: 'm1', promptVersion: 'v1', pinned: false, createdAt: 1, updatedAt: 1 });
+    for (const id of ['c1', 'c2']) await conversations.save({ id, title: id, messages: [], model: 'm1', promptVersion: 'v1', pinned: false, createdAt: 1, updatedAt: 1 });
     const provider: ProviderAdapter = {
       type: 'openai-compatible', capabilities: { streaming: true, text: true, vision: false, files: false, tools: false }, listModels: vi.fn(), testDraft: vi.fn(), testConnection: vi.fn(),
       async *streamChat(input) { yield { type: 'started', requestId: input.requestId }; await Promise.resolve(); yield { type: 'delta', requestId: input.requestId, text: input.requestId }; yield { type: 'completed', requestId: input.requestId }; },

@@ -42,7 +42,7 @@ describe('PreferencesRepository', () => {
     const fresh = new FakeStorageArea();
     await runMigrations(fresh);
     expect(fresh.snapshot()[STORAGE_KEYS.skills]).toEqual([]);
-    expect(fresh.snapshot()[STORAGE_KEYS.migrations]).toBe(7);
+    expect(fresh.snapshot()[STORAGE_KEYS.migrations]).toBe(8);
   });
   it('clears saved skills in the v4 migration and keeps skills added afterwards', async () => {
     const upgraded = new FakeStorageArea();
@@ -50,7 +50,7 @@ describe('PreferencesRepository', () => {
     await upgraded.set(STORAGE_KEYS.skills, [{ id: 'a', name: 'hi', prompt: '打招呼', createdAt: 1, updatedAt: 1 }]);
     await runMigrations(upgraded);
     expect(upgraded.snapshot()[STORAGE_KEYS.skills]).toEqual([]);
-    expect(upgraded.snapshot()[STORAGE_KEYS.migrations]).toBe(7);
+    expect(upgraded.snapshot()[STORAGE_KEYS.migrations]).toBe(8);
 
     const added = [{ id: 'b', name: '摘要', prompt: '提炼', createdAt: 2, updatedAt: 2 }];
     await upgraded.set(STORAGE_KEYS.skills, added);
@@ -67,7 +67,7 @@ describe('PreferencesRepository', () => {
       { type: 'action', id: 'translate' },
       { type: 'action', id: 'tech-stack' },
     ]);
-    expect(upgraded.snapshot()[STORAGE_KEYS.migrations]).toBe(7);
+    expect(upgraded.snapshot()[STORAGE_KEYS.migrations]).toBe(8);
 
     const custom = [{ type: 'skill', id: 'skill-1' }];
     const kept = new FakeStorageArea();
@@ -81,7 +81,7 @@ describe('PreferencesRepository', () => {
     await upgraded.set(STORAGE_KEYS.migrations, 5);
     await runMigrations(upgraded);
     expect(upgraded.snapshot()[STORAGE_KEYS.appearancePreference]).toBe('system');
-    expect(upgraded.snapshot()[STORAGE_KEYS.migrations]).toBe(7);
+    expect(upgraded.snapshot()[STORAGE_KEYS.migrations]).toBe(8);
 
     const kept = new FakeStorageArea();
     await kept.set(STORAGE_KEYS.migrations, 5);

@@ -44,9 +44,8 @@ interface ChatServiceDependencies {
   conversations: ConversationRepository;
   snapshots: ContextSnapshotService;
   streams: ActiveStreamRegistry;
-  getConfig(providerId: string): Promise<ProviderConfig | undefined>;
-  /** The Gateway to use when a conversation's own provider is missing, e.g. it was created before quick setup saved one. */
-  getDefaultConfig?(): Promise<ProviderConfig | undefined>;
+  /** The single Gateway from settings, shared by all conversations. */
+  getConfig(): Promise<ProviderConfig | undefined>;
   getSecret(providerId: string): Promise<string | undefined>;
   hasGatewayPermission(config: ProviderConfig): Promise<boolean>;
   getAdapter(config: ProviderConfig): ProviderAdapter;
@@ -79,7 +78,7 @@ export class ChatService {
     const attachments = input.attachments ?? [];
     if (!text && attachments.length === 0 && !input.skill) throw new AppError('INVALID_MESSAGE', '消息或附件不能为空');
     const conversation = await this.requireConversation(input.conversationId);
-    const config = await this.requireReadyProvider(conversation);
+    const config = await this.requireReadyProvider();
     const additionalSnapshots = await this.extractAdditionalTabs(input.tabId, input.contextSelection);
     const built = buildChatContext({
       conversation,
@@ -254,7 +253,7 @@ export class ChatService {
     );
     if (userIndex < 0) throw new AppError('INVALID_MESSAGE', '找不到要重试的用户消息');
     const userMessage = conversation.messages[userIndex]!;
-    const config = await this.requireReadyProvider(conversation);
+    const config = await this.requireReadyProvider();
     const historyBeforeTurn: Conversation = {
       ...conversation,
       messages: conversation.messages.slice(0, userIndex),
@@ -375,21 +374,12 @@ export class ChatService {
     return conversation;
   }
 
-  private async requireReadyProvider(conversation: Conversation): Promise<ProviderConfig> {
-    const config = await this.dependencies.getConfig(conversation.providerId)
-      ?? await this.dependencies.getDefaultConfig?.();
+  private async requireReadyProvider(): Promise<ProviderConfig> {
+    const config = await this.dependencies.getConfig();
     if (!config) throw new AppError('CONFIG_MISSING', '尚未配置 AI Gateway');
     if (!await this.dependencies.getSecret(config.id)) throw new AppError('API_KEY_MISSING', '尚未配置 Gateway API Key');
     if (!await this.dependencies.hasGatewayPermission(config)) {
       throw new AppError('HOST_PERMISSION_REQUIRED', '需要授权访问当前 Gateway');
-    }
-    if (conversation.providerId !== config.id) {
-      // Rebind so later model changes and retries resolve this Gateway directly.
-      await this.updateConversation(conversation.id, (current) => ({
-        ...current,
-        providerId: config.id,
-        model: current.model || config.model,
-      }));
     }
     return config;
   }

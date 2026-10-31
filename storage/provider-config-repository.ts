@@ -20,6 +20,11 @@ export class ProviderConfigRepository {
     return this.all();
   }
 
+  /** The Gateway in settings. Quick setup and the settings page both save it, and every conversation uses it. */
+  async getActive(): Promise<ProviderConfig | undefined> {
+    return (await this.all())[0];
+  }
+
   async save(draft: ProviderConfigDraft, apiKey?: string): Promise<ProviderConfig> {
     const configs = await this.all();
     const existing = configs.find((config) => config.id === draft.id);

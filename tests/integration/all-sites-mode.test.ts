@@ -68,7 +68,7 @@ describe('optional all-sites mode', () => {
     await current.preferences.save({ retentionDays: 30, pageAccessMode: 'all-sites', selectionButtonEnabled: true, documentContextCharacters: 40_000, attachmentMaxBytes: 5 * 1024 * 1024, siteDenylist: ['private.example'] });
     const sessions = new TabSessionService(
       new ConversationRepository(current.storage), new TabBindingRepository(current.storage),
-      async () => ({ providerId: 'p1', model: 'm1' }), { createId: () => 'c1', now: () => 1 },
+      async () => ({ model: 'm1' }), { createId: () => 'c1', now: () => 1 },
     );
     const extract = vi.fn(async (tabId: number, url: string, navigationKey: string) => ({
       snapshotId: 's1', tabId, title: 'Private', url,

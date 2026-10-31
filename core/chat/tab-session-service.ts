@@ -6,7 +6,6 @@ import type { ConversationRepository } from '../../storage/conversation-reposito
 import type { TabBindingRepository } from '../../storage/tab-binding-repository';
 
 interface ProviderDefaults {
-  providerId: string;
   model: string;
 }
 
@@ -61,7 +60,6 @@ export class TabSessionService {
       id: this.createId(),
       title: '新对话',
       messages: [],
-      providerId: defaults.providerId,
       model: defaults.model,
       promptVersion: CURRENT_PROMPT_VERSION,
       pinned: false,

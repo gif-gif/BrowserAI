@@ -10,7 +10,7 @@ function setup() {
   const service = new TabSessionService(
     new ConversationRepository(storage),
     new TabBindingRepository(storage),
-    async () => ({ providerId: 'provider-1', model: 'model-1' }),
+    async () => ({ model: 'model-1' }),
     { now: () => 100 + sequence, createId: () => `conversation-${++sequence}` },
   );
   return { service, conversations: new ConversationRepository(storage), bindings: new TabBindingRepository(storage) };
@@ -97,7 +97,7 @@ describe('TabSessionService', () => {
       id: 'saved',
       title: 'Saved',
       messages: [{ id: 'm1', role: 'user', content: 'Saved message', status: 'complete', createdAt: 1 }],
-      providerId: 'provider-1',
+      
       model: 'model-1',
       promptVersion: 'v1',
       pinned: false,
@@ -114,7 +114,7 @@ describe('TabSessionService', () => {
   it('binds an existing conversation to a tab and rejects a missing conversation', async () => {
     const { service, conversations, bindings } = setup();
     await conversations.save({
-      id: 'saved', title: 'Saved', messages: [], providerId: 'provider-1', model: 'model-1',
+      id: 'saved', title: 'Saved', messages: [], model: 'model-1',
       promptVersion: 'v1', pinned: false, createdAt: 1, updatedAt: 1,
     });
 

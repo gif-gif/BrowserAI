@@ -12,7 +12,7 @@ function state(tabId: number, conversationId: string): ActiveTabState {
       id: conversationId,
       title: conversationId,
       messages: [],
-      providerId: 'provider-1',
+      
       model: 'model-1',
       promptVersion: 'v1',
       pinned: false,

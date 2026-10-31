@@ -58,8 +58,7 @@ export function createMvpHarness(options: HarnessOptions = {}) {
     conversations,
     bindings,
     async () => {
-      const config = (await providerConfigs.list())[0];
-      return { providerId: config?.id ?? '', model: config?.model ?? '' };
+      return { model: (await providerConfigs.getActive())?.model ?? '' };
     },
     { now: () => ++now, createId: () => `conversation-${++conversationSequence}` },
   );
@@ -85,7 +84,7 @@ export function createMvpHarness(options: HarnessOptions = {}) {
     conversations,
     snapshots,
     streams,
-    getConfig: (providerId) => providerConfigs.get(providerId),
+    getConfig: () => providerConfigs.getActive(),
     getSecret: (providerId) => providerConfigs.getSecretForBackground(providerId),
     hasGatewayPermission: (config) => chrome.browser.permissions.contains({
       origins: [`${new URL(config.baseURL).origin}/*`],
