@@ -262,7 +262,8 @@ function createRuntimeHandlers(
       const updated = await services.conversations.setModel(command.conversationId, command.model.trim());
       if (!updated) throw new AppError('INVALID_MESSAGE', '要更新的对话不存在');
       // Remember the choice as the Gateway default so new conversations start with it.
-      const config = await services.providerConfigs.get(updated.providerId);
+      const config = await services.providerConfigs.get(updated.providerId)
+        ?? (await services.providerConfigs.list())[0];
       if (config && config.model !== updated.model) {
         await services.providerConfigs.save({ ...config, model: updated.model });
       }

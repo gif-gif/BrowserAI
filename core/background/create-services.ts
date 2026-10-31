@@ -89,6 +89,7 @@ export function createBackgroundServices(api: BackgroundBrowserApi): BackgroundS
     snapshots,
     streams,
     getConfig: (providerId) => providerConfigs.get(providerId),
+    getDefaultConfig: async () => (await providerConfigs.list())[0],
     getSecret: (providerId) => providerConfigs.getSecretForBackground(providerId),
     hasGatewayPermission: async (config) => api.permissions.contains({
       origins: [analyzeGatewayBaseUrl(config.baseURL).originPattern],

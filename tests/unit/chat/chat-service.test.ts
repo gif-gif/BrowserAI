@@ -21,6 +21,8 @@ function adapter(events: ProviderStreamEvent[], onStart = vi.fn()): ProviderAdap
 
 async function setup(options: {
   hasConfig?: boolean;
+  conversation?: Conversation;
+  defaultConfigId?: string;
   hasKey?: boolean;
   hasPermission?: boolean;
   events?: ProviderStreamEvent[];
@@ -33,7 +35,7 @@ async function setup(options: {
 } = {}) {
   const storage = new FakeStorageArea();
   const conversations = new ConversationRepository(storage);
-  await conversations.save(conversation());
+  await conversations.save(options.conversation ?? conversation());
   const onStart = vi.fn();
   let batchIndex = 0;
   const provider = options.eventBatches
@@ -53,7 +55,10 @@ async function setup(options: {
   let id = 0;
   const service = new ChatService({
     conversations, snapshots: new ContextSnapshotService(), streams: new ActiveStreamRegistry(),
-    getConfig: async () => options.hasConfig === false ? undefined : ({ id: 'p1', name: 'P', type: 'openai-compatible', baseURL: 'https://api.example.com/v1', model: 'm1', endpointMode: 'chat-completions', defaultHeaders: {}, timeoutMs: 1000, stream: true, createdAt: 1, updatedAt: 1 }),
+    getConfig: async (providerId) => options.hasConfig === false || providerId !== 'p1' ? undefined : ({ id: 'p1', name: 'P', type: 'openai-compatible', baseURL: 'https://api.example.com/v1', model: 'm1', endpointMode: 'chat-completions', defaultHeaders: {}, timeoutMs: 1000, stream: true, createdAt: 1, updatedAt: 1 }),
+    ...(options.defaultConfigId ? {
+      getDefaultConfig: async () => ({ id: options.defaultConfigId!, name: 'G', type: 'openai-compatible' as const, baseURL: 'https://gateway.example.com/v1', model: 'g1', endpointMode: 'chat-completions' as const, defaultHeaders: {}, timeoutMs: 1000, stream: true, createdAt: 1, updatedAt: 1 }),
+    } : {}),
     getSecret: async () => options.hasKey === false ? undefined : 'key',
     hasGatewayPermission: async () => options.hasPermission !== false,
     getAdapter: () => provider,
@@ -74,6 +79,23 @@ describe('ChatService', () => {
     const { service, conversations } = await setup(options);
     await expect(service.start(input, vi.fn())).rejects.toMatchObject({ code });
     expect((await conversations.get('c1'))?.messages).toHaveLength(0);
+  });
+
+  it('falls back to the configured Gateway when the conversation predates quick setup and rebinds it', async () => {
+    const { service, conversations, onStart } = await setup({
+      conversation: { ...conversation(), providerId: '', model: '' },
+      defaultConfigId: 'gateway-main',
+    });
+    await service.start(input, vi.fn());
+    expect(onStart).toHaveBeenCalledWith(expect.objectContaining({ providerId: 'gateway-main', model: 'g1' }));
+    const saved = await conversations.get('c1');
+    expect(saved).toMatchObject({ providerId: 'gateway-main', model: 'g1' });
+    expect(saved?.messages.map((item) => item.status)).toEqual(['complete', 'complete']);
+  });
+
+  it('keeps reporting CONFIG_MISSING when no Gateway is configured at all', async () => {
+    const { service } = await setup({ conversation: { ...conversation(), providerId: '' } });
+    await expect(service.start(input, vi.fn())).rejects.toMatchObject({ code: 'CONFIG_MISSING' });
   });
 
   it('persists user then streaming placeholder before network, forwards deltas, and completes', async () => {
