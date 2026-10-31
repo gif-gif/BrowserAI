@@ -566,6 +566,18 @@ describe('Side Panel chat flow', () => {
     await waitFor(() => expect(screen.queryByRole('form', { name: '连接 AI Gateway' })).not.toBeInTheDocument());
   });
 
+  it('asks for all-sites access from the send gesture, not before', async () => {
+    const user = userEvent.setup();
+    const deps = dependencies();
+    deps.ensureAllSitesAccess = vi.fn();
+    render(<App dependencies={deps} />);
+
+    const input = await screen.findByRole('combobox', { name: '消息' });
+    expect(deps.ensureAllSitesAccess).not.toHaveBeenCalled();
+    await user.type(input, 'Hello{Enter}');
+    expect(deps.ensureAllSitesAccess).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps the quick setup card with an error when Gateway access is denied', async () => {
     const user = userEvent.setup();
     const deps = dependencies({ providerReady: false });

@@ -127,6 +127,11 @@ export interface SidePanelDependencies {
    * from the user gesture; resolves whether access was granted.
    */
   requestGatewayAccess?(baseURL: string): Promise<boolean>;
+  /**
+   * Asks once for access to all sites when it is missing, for Gateways set up before it was
+   * requested together with the Gateway. Must be called synchronously from the user gesture.
+   */
+  ensureAllSitesAccess?(): void;
   /** Set when this app runs as the in-page floating chat of that tab instead of the side panel. */
   floatingTabId?: number;
   /**
@@ -764,15 +769,17 @@ function ConnectedSidePanel({ dependencies }: { dependencies: SidePanelDependenc
   const send = useCallback((text: string, attachments: ChatAttachment[] = [], skill?: SkillInvocation) => {
     const state = activeTab.data;
     if (!state || !provider.ready) return false;
+    dependencies.ensureAllSitesAccess?.();
     setQuickActionErrorMessage(undefined);
     const requestId = startChat(state, text, attachments, false, pageActionsEnabled, undefined, skill);
     if (requestId && pageActionsEnabled) setPageActionsEnabled(false);
     return Boolean(requestId);
-  }, [activeTab.data, pageActionsEnabled, provider.ready, startChat]);
+  }, [activeTab.data, dependencies, pageActionsEnabled, provider.ready, startChat]);
 
   const sendQuickAction = useCallback(async (action: QuickAction) => {
     if (quickActionBusyRef.current || !provider.ready) return;
     if (chat.stream.status === 'streaming') return;
+    dependencies.ensureAllSitesAccess?.();
 
     quickActionBusyRef.current = true;
     setQuickActionBusy(true);
@@ -1083,6 +1090,11 @@ function createDefaultDependencies(floatingTabId?: number): SidePanelDependencie
   // "tabs" and site access are requested together, once, from the first “@”
   // gesture so adding other tabs afterwards never prompts again.
   const mentionAccess = { permissions: ['tabs' as const], origins: MENTION_SITE_ORIGINS };
+  // Checked up front because the request in ensureAllSitesAccess cannot wait on an await.
+  let allSitesAccess: boolean | 'denied' | undefined;
+  void browser.permissions.contains({ origins: MENTION_SITE_ORIGINS })
+    .then((granted) => { allSitesAccess = granted; })
+    .catch(() => undefined);
   const queryWindowTabs = async () => {
     const tabs = await browser.tabs.query({ currentWindow: true });
     return tabs
@@ -1148,7 +1160,17 @@ function createDefaultDependencies(floatingTabId?: number): SidePanelDependencie
       let originPattern: string;
       try { originPattern = analyzeGatewayBaseUrl(baseURL).originPattern; } catch { return Promise.resolve(false); }
       // permissions.request must be called synchronously from the user gesture.
-      return browser.permissions.request({ origins: [originPattern] });
+      // All-sites access is asked for in the same prompt so page features work on new and open pages.
+      return browser.permissions.request({ origins: [originPattern, ...MENTION_SITE_ORIGINS] });
+    },
+    ensureAllSitesAccess() {
+      if (allSitesAccess !== false) return;
+      // Ask at most once per panel; a denial must not prompt on every message.
+      allSitesAccess = undefined;
+      // permissions.request must be called synchronously from the user gesture.
+      void browser.permissions.request({ origins: MENTION_SITE_ORIGINS })
+        .then((granted) => { allSitesAccess = granted ? true : 'denied'; })
+        .catch(() => { allSitesAccess = 'denied'; });
     },
     openOptionsPage: async (section) => {
       if (!section) {

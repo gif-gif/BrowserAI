@@ -25,6 +25,8 @@ function createBrowser() {
   const menuClicked = event<(info: { menuItemId: string | number; selectionText?: string }, tab?: BackgroundTab) => void>();
   const alarm = event<(alarm: { name: string }) => void>();
   const installed = event<(details: { reason: string }) => void>();
+  const permissionsAdded = event<(permissions: { origins?: string[] }) => void>();
+  const permissionsRemoved = event<(permissions: { origins?: string[] }) => void>();
   const queryActiveTab = vi.fn<BackgroundBrowserApi['tabs']['query']>(async () => [
     { id: 7, url: 'https://example.test/article' },
   ]);
@@ -47,9 +49,9 @@ function createBrowser() {
     sidePanel: { setOptions: vi.fn(async () => undefined), open: vi.fn(async () => undefined) },
     contextMenus: { removeAll: vi.fn(async () => undefined), create: vi.fn(), onClicked: menuClicked },
     alarms: { get: vi.fn(async () => undefined), create: vi.fn(), onAlarm: alarm },
-    permissions: { contains: vi.fn<(permission: { origins: string[] }) => Promise<boolean>>(async () => true), request: vi.fn(async () => true), remove: vi.fn(async () => true) },
+    permissions: { contains: vi.fn<(permission: { origins: string[] }) => Promise<boolean>>(async () => true), request: vi.fn(async () => true), remove: vi.fn(async () => true), onAdded: permissionsAdded, onRemoved: permissionsRemoved },
   } satisfies BackgroundBrowserApi;
-  return { browser, runtimeMessage, runtimeConnect, actionClicked, tabRemoved, tabUpdated, installed };
+  return { browser, runtimeMessage, runtimeConnect, actionClicked, tabRemoved, tabUpdated, installed, permissionsAdded, permissionsRemoved };
 }
 
 type TestPort = BackgroundPort & {
@@ -91,6 +93,8 @@ function createServices(): BackgroundServices {
       getPagePolicy: vi.fn(async () => ({ supported: true, excluded: true, automatic: false, selectionActionEnabled: false, pageContextAllowed: false, canAllowOnce: true, reason: 'denylisted' })),
       allowOnce: vi.fn(async () => true),
       restoreAllSites: vi.fn(async () => false),
+      enableAllSites: vi.fn(async () => ({ granted: true, registered: true })),
+      disableAllSites: vi.fn(async () => ({ unregistered: true, permissionRemoved: false })),
     },
     snapshots: { store: vi.fn(), current: vi.fn(), invalidate: vi.fn(), remove: vi.fn(), requireCurrent: vi.fn(), require: vi.fn(), attachSelection: vi.fn(), syncSelection: vi.fn() },
     sessions: {
@@ -277,6 +281,26 @@ describe('background lifecycle and router handlers', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(browser.scripting.executeScript).toHaveBeenCalledTimes(1);
     expect(browser.permissions.request).not.toHaveBeenCalled();
+  });
+
+  it('turns on page features for every site once all-sites access is granted', async () => {
+    const { browser, permissionsAdded, permissionsRemoved } = createBrowser();
+    const services = createServices();
+    browser.tabs.query.mockResolvedValue([{ id: 1, url: 'https://old.test/form' }, { id: 2, url: 'chrome://extensions' }]);
+    startBackground(browser, { services, migrate: vi.fn(), reconcile: vi.fn(), cleanup: vi.fn() });
+
+    // A Gateway-only grant does not touch page access.
+    permissionsAdded.listeners.forEach((listener) => listener({ origins: ['https://gateway.example.com/*'] }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(services.pageAccess.enableAllSites).not.toHaveBeenCalled();
+
+    permissionsAdded.listeners.forEach((listener) => listener({ origins: ['https://gateway.example.com/*', 'http://*/*', 'https://*/*'] }));
+    await vi.waitFor(() => expect(browser.scripting.executeScript).toHaveBeenCalledWith({ target: { tabId: 1 }, files: ['content-scripts/content.js'] }));
+    expect(services.pageAccess.enableAllSites).toHaveBeenCalledTimes(1);
+    expect(browser.scripting.executeScript).toHaveBeenCalledTimes(1);
+
+    permissionsRemoved.listeners.forEach((listener) => listener({ origins: ['http://*/*', 'https://*/*'] }));
+    await vi.waitFor(() => expect(services.pageAccess.disableAllSites).toHaveBeenCalledTimes(1));
   });
 
   it('refuses the floating chat on pages scripts cannot reach', async () => {

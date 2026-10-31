@@ -67,6 +67,8 @@ export interface BackgroundBrowserApi {
     contains(permissions: { origins: string[] }): Promise<boolean>;
     request(permissions: { origins: string[] }): Promise<boolean>;
     remove(permissions: { origins: string[] }): Promise<boolean>;
+    onAdded?: BackgroundEvent<(permissions: { origins?: string[] }) => void>;
+    onRemoved?: BackgroundEvent<(permissions: { origins?: string[] }) => void>;
   };
 }
 

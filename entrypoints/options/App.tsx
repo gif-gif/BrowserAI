@@ -16,6 +16,7 @@ import {
   type SettingsSection,
 } from '../../components/settings/settings-sections';
 import { analyzeGatewayBaseUrl } from '../../core/permissions/gateway-origin';
+import { ALL_SITES_ORIGINS } from '../../core/permissions/page-access-service';
 import {
   ProviderConfigService,
   type ProviderSettingsItem,
@@ -156,7 +157,8 @@ export default function App({
 
     // permissions.request 必须直接发生在按钮点击的用户手势中。
     // 不要在它之前添加 await，也不要把请求转发到 Background Service Worker。
-    const granted = await gatewayPermissions.request({ origins: [originPattern] });
+    // 与 Gateway 一起申请所有网站访问，页面功能在新旧页面上都能直接使用。
+    const granted = await gatewayPermissions.request({ origins: [originPattern, ...ALL_SITES_ORIGINS] });
     if (!granted) {
       throw new AppError('HOST_PERMISSION_REQUIRED', '需要授权：请允许 Chrome 访问该 Gateway 后重试。');
     }

@@ -7,6 +7,7 @@ import { CHAT_STREAM_PORT_NAME } from '../../messaging/chat-port';
 import { chatPortCommandSchema, contentEventSchema, type ContentEvent, type StreamEvent } from '../../messaging/contracts';
 import type { StorageArea } from '../../storage/storage-area';
 import type { ConversationRepository } from '../../storage/conversation-repository';
+import { ALL_SITES_ORIGINS } from '../permissions/page-access-service';
 import { createBackgroundServices, type BackgroundServices } from './create-services';
 import { registerAlarms } from './register-alarms';
 import { registerTabListeners } from './register-tab-listeners';
@@ -648,6 +649,26 @@ export function startBackground(
   };
   api.runtime.onInstalled?.addListener(onInstalled);
   disposers.push(() => api.runtime.onInstalled?.removeListener(onInstalled));
+
+  // All-sites access is granted from the side panel or settings page together
+  // with the Gateway. Register the page script for every site and put it into
+  // tabs that are already open, so new and existing pages get page features.
+  const onPermissionsAdded = ({ origins = [] }: { origins?: string[] }) => {
+    if (!ALL_SITES_ORIGINS.some((origin) => origins.includes(origin))) return;
+    void services.pageAccess.enableAllSites()
+      .then(({ granted }) => (granted ? restoreOpenTabScripts(api) : undefined))
+      .catch(() => undefined);
+  };
+  const onPermissionsRemoved = ({ origins = [] }: { origins?: string[] }) => {
+    if (!ALL_SITES_ORIGINS.some((origin) => origins.includes(origin))) return;
+    void services.pageAccess.disableAllSites().catch(() => undefined);
+  };
+  api.permissions.onAdded?.addListener(onPermissionsAdded);
+  api.permissions.onRemoved?.addListener(onPermissionsRemoved);
+  disposers.push(() => {
+    api.permissions.onAdded?.removeListener(onPermissionsAdded);
+    api.permissions.onRemoved?.removeListener(onPermissionsRemoved);
+  });
 
   const onActionClicked = (tab: BackgroundTab) => {
     void sidePanels.open(tab).catch(() => undefined);
