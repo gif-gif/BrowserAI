@@ -42,7 +42,7 @@ describe('PreferencesRepository', () => {
     const fresh = new FakeStorageArea();
     await runMigrations(fresh);
     expect(fresh.snapshot()[STORAGE_KEYS.skills]).toEqual([]);
-    expect(fresh.snapshot()[STORAGE_KEYS.migrations]).toBe(9);
+    expect(fresh.snapshot()[STORAGE_KEYS.migrations]).toBe(10);
   });
   it('clears saved skills in the v4 migration and keeps skills added afterwards', async () => {
     const upgraded = new FakeStorageArea();
@@ -50,7 +50,7 @@ describe('PreferencesRepository', () => {
     await upgraded.set(STORAGE_KEYS.skills, [{ id: 'a', name: 'hi', prompt: '打招呼', createdAt: 1, updatedAt: 1 }]);
     await runMigrations(upgraded);
     expect(upgraded.snapshot()[STORAGE_KEYS.skills]).toEqual([]);
-    expect(upgraded.snapshot()[STORAGE_KEYS.migrations]).toBe(9);
+    expect(upgraded.snapshot()[STORAGE_KEYS.migrations]).toBe(10);
 
     const added = [{ id: 'b', name: '摘要', prompt: '提炼', createdAt: 2, updatedAt: 2 }];
     await upgraded.set(STORAGE_KEYS.skills, added);
@@ -67,7 +67,7 @@ describe('PreferencesRepository', () => {
       { type: 'action', id: 'translate' },
       { type: 'action', id: 'tech-stack' },
     ]);
-    expect(upgraded.snapshot()[STORAGE_KEYS.migrations]).toBe(9);
+    expect(upgraded.snapshot()[STORAGE_KEYS.migrations]).toBe(10);
 
     const custom = [{ type: 'skill', id: 'skill-1' }];
     const kept = new FakeStorageArea();
@@ -81,7 +81,7 @@ describe('PreferencesRepository', () => {
     await upgraded.set(STORAGE_KEYS.migrations, 5);
     await runMigrations(upgraded);
     expect(upgraded.snapshot()[STORAGE_KEYS.appearancePreference]).toBe('system');
-    expect(upgraded.snapshot()[STORAGE_KEYS.migrations]).toBe(9);
+    expect(upgraded.snapshot()[STORAGE_KEYS.migrations]).toBe(10);
 
     const kept = new FakeStorageArea();
     await kept.set(STORAGE_KEYS.migrations, 5);
@@ -89,15 +89,16 @@ describe('PreferencesRepository', () => {
     await runMigrations(kept);
     expect(kept.snapshot()[STORAGE_KEYS.appearancePreference]).toBe('dark');
   });
-  it('swaps the untouched default “解释” shortcut for the slide deck in the v9 migration', async () => {
+  it('swaps the untouched default “解释” shortcut for the slide deck in the v10 migration, also for installs already at v9', async () => {
+    // chrome.storage returns object keys sorted, so the stored entries read back as { id, type }.
     const previous = [
-      { type: 'action', id: 'summarize' },
-      { type: 'action', id: 'explain' },
-      { type: 'action', id: 'translate' },
-      { type: 'action', id: 'tech-stack' },
+      { id: 'summarize', type: 'action' },
+      { id: 'explain', type: 'action' },
+      { id: 'translate', type: 'action' },
+      { id: 'tech-stack', type: 'action' },
     ];
     const upgraded = new FakeStorageArea();
-    await upgraded.set(STORAGE_KEYS.migrations, 8);
+    await upgraded.set(STORAGE_KEYS.migrations, 9);
     await upgraded.set(STORAGE_KEYS.newChatShortcuts, previous);
     await runMigrations(upgraded);
     expect(upgraded.snapshot()[STORAGE_KEYS.newChatShortcuts]).toEqual([

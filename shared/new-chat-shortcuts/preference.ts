@@ -14,7 +14,7 @@ export const MAX_NEW_CHAT_SHORTCUTS = 4;
 export const DEFAULT_NEW_CHAT_SHORTCUTS: NewChatShortcut[] = (['summarize', 'slide-deck', 'translate', 'tech-stack'] as const)
   .map((id) => ({ type: 'action', id }));
 
-/** The defaults before v9, which showed “解释” in the second slot. */
+/** The defaults before v10, which showed “解释” in the second slot. */
 export const PREVIOUS_DEFAULT_NEW_CHAT_SHORTCUTS: NewChatShortcut[] = (['summarize', 'explain', 'translate', 'tech-stack'] as const)
   .map((id) => ({ type: 'action', id }));
 
