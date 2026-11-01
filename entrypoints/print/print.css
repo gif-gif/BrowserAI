@@ -1,0 +1,48 @@
+:root {
+  color: #202124;
+  background: #ffffff;
+  color-scheme: light;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+body { margin: 0; }
+.print-page { max-width: 760px; margin: 0 auto; padding: 32px 24px 48px; }
+.print-page__status { color: #5f6368; font-size: 14px; }
+.print-page__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  color: #5f6368;
+  background: #f1f3f4;
+  font-size: 13px;
+}
+.print-page__toolbar button {
+  min-height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #0b57d0;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+.print-page__content { font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
+.print-page__content h1, .print-page__content h2, .print-page__content h3 { line-height: 1.3; break-after: avoid; }
+.print-page__content ul, .print-page__content ol { padding-left: 22px; }
+.print-page__content pre { overflow-x: auto; padding: 12px; border: 1px solid #dadce0; border-radius: 8px; background: #f8f9fa; white-space: pre-wrap; break-inside: avoid; }
+.print-page__content code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: .9em; }
+.print-page__content table { width: 100%; border-collapse: collapse; font-size: 12px; break-inside: auto; }
+.print-page__content tr { break-inside: avoid; }
+.print-page__content th, .print-page__content td { padding: 6px 8px; border: 1px solid #dadce0; text-align: left; vertical-align: top; }
+.print-page__content th { background: #f1f3f4; }
+.print-page__content a { color: #0b57d0; }
+.print-page__content blockquote { margin: 0; padding-left: 12px; border-left: 3px solid #dadce0; color: #5f6368; }
+@media print {
+  .print-page { max-width: none; padding: 0; }
+  .print-page__toolbar { display: none; }
+  .print-page__content a { color: inherit; }
+}

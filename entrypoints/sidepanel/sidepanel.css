@@ -1244,3 +1244,39 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   .panel-header { padding-inline: 4px; }
   .icon-button { width: 40px; height: 40px; }
 }
+
+/* Slide outline from the “make a slide deck” skill, downloadable as .pptx. */
+.slide-deck {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 10px;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--blue) 14%, var(--line));
+  border-radius: 12px;
+  background: var(--surface-subtle);
+}
+.slide-deck__icon { grid-row: 1 / span 2; width: 34px; height: 38px; display: grid; place-items: center; border-radius: 8px; color: var(--blue); background: var(--blue-soft); font-size: 8px; font-weight: 800; letter-spacing: .04em; }
+.slide-deck__title { overflow: hidden; font-size: 13px; font-weight: 680; text-overflow: ellipsis; white-space: nowrap; }
+.slide-deck--pending .slide-deck__icon, .slide-deck--invalid .slide-deck__icon { grid-row: auto; }
+.slide-deck--pending .slide-deck__title { color: var(--muted); font-weight: 600; }
+.slide-deck--invalid .slide-deck__title { color: var(--danger); font-weight: 600; white-space: normal; }
+.slide-deck__meta { grid-column: 2; color: var(--muted); font-size: 11px; }
+.message__content .slide-deck__outline { grid-column: 1 / -1; margin: 6px 0 2px; padding-left: 20px; color: var(--muted-strong); font-size: 12px; line-height: 1.6; }
+.slide-deck__download {
+  grid-column: 1 / -1;
+  justify-self: start;
+  min-height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  color: #ffffff;
+  background: var(--blue);
+  font-size: 12px;
+  font-weight: 650;
+}
+:root[data-appearance="dark"] .slide-deck__download { color: #1b1c1f; }
+.slide-deck__download:hover:not(:disabled) { background: var(--blue-hover); }
+.slide-deck__download:disabled { opacity: .6; }

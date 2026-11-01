@@ -8,7 +8,7 @@ import { validateSkill } from '../../../shared/skills/skill-store';
 describe('skill catalog', () => {
   it.each([['zh-CN', zhCN], ['zh-TW', zhTW], ['en', en]])('gives every %s catalog skill a name that can be typed after “/”', (_, messages) => {
     const catalog = localizeCatalog(messages.catalogSkills);
-    expect(catalog).toHaveLength(53);
+    expect(catalog).toHaveLength(54);
     for (const skill of catalog) expect(skill.prompt.trim()).not.toBe('');
     for (const skill of catalog) expect(validateSkill(skill, [])).toBeUndefined();
     expect(new Set(catalog.map((skill) => skill.name.toLocaleLowerCase())).size).toBe(catalog.length);

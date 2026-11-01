@@ -60,6 +60,7 @@ export const CATALOG_SKILL_IDS = [
   'explain-page',
   'translate-page',
   'analyze-tech-stack',
+  'make-a-slide-deck',
 ] as const;
 
 export type CatalogSkillId = (typeof CATALOG_SKILL_IDS)[number];
@@ -72,7 +73,7 @@ export interface CatalogSkillMeta {
 }
 
 /**
- * Order of the 精选技能 cards. The page skills (总结, 解释, 翻译, 分析技术栈) lead, followed by
+ * Order of the 精选技能 cards. The page skills (总结, 解释, 翻译, 分析技术栈, 生成 PPT) lead, followed by
  * Chrome's own picks; listed skills keep their category, so they still appear under 浏览技能.
  */
 export const FEATURED_SKILL_IDS: readonly CatalogSkillId[] = [
@@ -80,6 +81,7 @@ export const FEATURED_SKILL_IDS: readonly CatalogSkillId[] = [
   'explain-page',
   'translate-page',
   'analyze-tech-stack',
+  'make-a-slide-deck',
   'protein-max',
   'meal-planner',
   'gift-concierge',
@@ -119,6 +121,7 @@ export const SKILL_CATALOG: readonly CatalogSkillMeta[] = [
   { id: 'build-timeline', category: 'understanding', emoji: '⏳' },
   { id: 'opposing-view', category: 'understanding', emoji: '🤺' },
   { id: 'summarize-as-table', category: 'understanding', emoji: '📊' },
+  { id: 'make-a-slide-deck', category: 'understanding', emoji: '📽️' },
   { id: 'check-reading-level', category: 'understanding', emoji: '🎓' },
   { id: 'where-does-the-time-go', category: 'understanding', emoji: '⏱️' },
   { id: 'whats-in-this', category: 'understanding', emoji: '📝' },

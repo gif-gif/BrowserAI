@@ -4,6 +4,8 @@ import { localizeError } from '../../shared/i18n/locale';
 import { isImageAttachment, type ChatMessage } from '../../shared/types/chat';
 import { MessageActions } from './MessageActions';
 import { SafeMarkdown } from './SafeMarkdown';
+import { SlideDeckCard } from './SlideDeckCard';
+import { splitSlideDeck } from '../../core/export/slide-deck';
 import { StreamingIndicator, useBatchedStreamingText } from './StreamingIndicator';
 
 interface MessageItemProps {
@@ -20,6 +22,8 @@ function MessageItemView({ message, retryUserMessageId, onRetry }: MessageItemPr
   const isAssistant = message.role === 'assistant';
   const roleLabel = isUser ? messages.you : isAssistant ? messages.ai : messages.system;
   const retryable = isAssistant && (message.status === 'failed' || message.status === 'cancelled');
+  // An answer from the slide-deck skill carries its outline in a ```slides block, shown as a download card.
+  const slideDeck = isAssistant ? splitSlideDeck(visibleContent) : undefined;
 
   return (
     <article className={`message message--${message.role} message--${message.status}`} aria-label={messages.messageFrom(roleLabel)}>
@@ -51,7 +55,13 @@ function MessageItemView({ message, retryUserMessageId, onRetry }: MessageItemPr
         <div className="message__skill" title={message.skill.prompt}>/{message.skill.name}</div>
       ) : null}
 
-      {visibleContent && (
+      {slideDeck ? (
+        <div className="message__content">
+          {slideDeck.before && <SafeMarkdown content={slideDeck.before} />}
+          <SlideDeckCard deck={slideDeck.deck} pending={slideDeck.open && message.status === 'streaming'} />
+          {slideDeck.after && <SafeMarkdown content={slideDeck.after} />}
+        </div>
+      ) : visibleContent && (
         <div className="message__content">
           <SafeMarkdown content={visibleContent} />
         </div>

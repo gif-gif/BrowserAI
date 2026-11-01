@@ -13,6 +13,8 @@ export const STORAGE_KEYS = {
   floatingChatLayout: 'chromeAi:v1:floatingChatLayout',
   /** chrome.storage.session: tabs showing the in-page floating chat; cleared when Chrome restarts. */
   floatingChatTabs: 'chromeAi:v1:floatingChatTabs',
+  /** chrome.storage.session: an answer handed to the print page for “Export PDF”; removed once read. */
+  printJobPrefix: 'chromeAi:v1:printJob:',
   migrations: 'chromeAi:v1:migrations',
 } as const;
 
