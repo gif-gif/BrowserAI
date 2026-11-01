@@ -69,7 +69,7 @@ export async function runMigrations(storage: StorageArea): Promise<void> {
     }
   }
   if (current < 9) {
-    // v9: the default “解释” shortcut became “生成演示文稿PPT”. Only untouched defaults change; a customized list stays.
+    // v9: the default “解释” shortcut became “生成演示PPT”. Only untouched defaults change; a customized list stays.
     const shortcuts = await storage.get<unknown>(STORAGE_KEYS.newChatShortcuts);
     if (JSON.stringify(shortcuts) === JSON.stringify(PREVIOUS_DEFAULT_NEW_CHAT_SHORTCUTS)) {
       await storage.set(STORAGE_KEYS.newChatShortcuts, DEFAULT_NEW_CHAT_SHORTCUTS);

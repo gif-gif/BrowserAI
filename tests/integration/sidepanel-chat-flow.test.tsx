@@ -408,12 +408,12 @@ describe('Side Panel chat flow', () => {
     if (withoutSelection.context.status === 'ready') delete withoutSelection.context.snapshot.selection;
     render(<App dependencies={dependencies({ port, states: [withoutSelection] })} />);
 
-    await user.click(await screen.findByRole('button', { name: '生成演示文稿PPT' }));
+    await user.click(await screen.findByRole('button', { name: '生成演示PPT' }));
 
     expect(port.postMessage).toHaveBeenCalledWith(expect.objectContaining({
       type: 'START_CHAT',
       text: '',
-      skill: { name: '生成演示文稿PPT', prompt: expect.stringContaining('```slides') },
+      skill: { name: '生成演示PPT', prompt: expect.stringContaining('```slides') },
       contextSelection: expect.objectContaining({ includePage: true }),
     }));
   });

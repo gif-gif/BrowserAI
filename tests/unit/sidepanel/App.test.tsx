@@ -112,7 +112,7 @@ describe('Side Panel App', () => {
 
     expect(screen.getByRole('button', { name: '总结' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '解释' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '生成演示文稿PPT' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '生成演示PPT' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '翻译' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '提取要点' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '分析技术栈' })).toBeInTheDocument();

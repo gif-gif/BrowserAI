@@ -73,7 +73,7 @@ describe('BrowseSkills', () => {
   it('shows featured cards and filters the catalog by category', async () => {
     const user = userEvent.setup();
     render(<BrowseSkills skills={[]} />);
-    expect(cardTitles(screen.getByRole('region', { name: '精选技能' }))).toEqual(['总结', '解释', '翻译', '分析技术栈', '生成演示文稿PPT', '高蛋白顶配版', '餐食规划助手', '礼物甄选顾问']);
+    expect(cardTitles(screen.getByRole('region', { name: '精选技能' }))).toEqual(['总结', '解释', '翻译', '分析技术栈', '生成演示PPT', '高蛋白顶配版', '餐食规划助手', '礼物甄选顾问']);
 
     const browse = screen.getByRole('region', { name: '浏览技能' });
     expect(within(browse).getAllByRole('listitem')).toHaveLength(54);
