@@ -1,9 +1,9 @@
 import { useI18n } from '../../shared/i18n/I18nProvider';
-import { DEFAULT_NEW_CHAT_SHORTCUTS, shortcutKey, type NewChatShortcut } from '../../shared/new-chat-shortcuts/preference';
+import { DEFAULT_NEW_CHAT_SHORTCUTS, shortcutKey, type NewChatShortcut, type QuickActionId } from '../../shared/new-chat-shortcuts/preference';
 import type { Skill } from '../../shared/types/skill';
 
 export interface QuickAction {
-  id: 'summarize' | 'explain' | 'translate' | 'tech-stack';
+  id: QuickActionId;
   label: string;
   description: string;
   prompt: string;

@@ -1,6 +1,6 @@
 import { STORAGE_KEYS } from '../constants/storage-keys';
 
-export const QUICK_ACTION_IDS = ['summarize', 'explain', 'translate', 'tech-stack'] as const;
+export const QUICK_ACTION_IDS = ['summarize', 'explain', 'translate', 'tech-stack', 'slide-deck'] as const;
 export type QuickActionId = (typeof QUICK_ACTION_IDS)[number];
 
 /** One suggestion button on the new-conversation page: a built-in quick action or a saved “/” skill. */
@@ -10,7 +10,13 @@ export type NewChatShortcut =
 
 export const MAX_NEW_CHAT_SHORTCUTS = 4;
 
-export const DEFAULT_NEW_CHAT_SHORTCUTS: NewChatShortcut[] = QUICK_ACTION_IDS.map((id) => ({ type: 'action', id }));
+/** “解释” stays selectable in settings; the default slot shows the slide-deck skill instead. */
+export const DEFAULT_NEW_CHAT_SHORTCUTS: NewChatShortcut[] = (['summarize', 'slide-deck', 'translate', 'tech-stack'] as const)
+  .map((id) => ({ type: 'action', id }));
+
+/** The defaults before v9, which showed “解释” in the second slot. */
+export const PREVIOUS_DEFAULT_NEW_CHAT_SHORTCUTS: NewChatShortcut[] = (['summarize', 'explain', 'translate', 'tech-stack'] as const)
+  .map((id) => ({ type: 'action', id }));
 
 function isShortcut(value: unknown): value is NewChatShortcut {
   const candidate = value as Partial<NewChatShortcut> | null;

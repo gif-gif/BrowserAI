@@ -73,7 +73,7 @@ export interface CatalogSkillMeta {
 }
 
 /**
- * Order of the 精选技能 cards. The page skills (总结, 解释, 翻译, 分析技术栈, 生成 PPT) lead, followed by
+ * Order of the 精选技能 cards. The page skills (总结, 解释, 翻译, 分析技术栈, 生成演示文稿PPT) lead, followed by
  * Chrome's own picks; listed skills keep their category, so they still appear under 浏览技能.
  */
 export const FEATURED_SKILL_IDS: readonly CatalogSkillId[] = [

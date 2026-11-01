@@ -1,12 +1,12 @@
 import { STORAGE_KEYS } from '../shared/constants/storage-keys';
 import type { StorageArea } from './storage-area';
 import { DEFAULT_PREFERENCES } from './preferences-repository';
-import { DEFAULT_NEW_CHAT_SHORTCUTS } from '../shared/new-chat-shortcuts/preference';
+import { DEFAULT_NEW_CHAT_SHORTCUTS, PREVIOUS_DEFAULT_NEW_CHAT_SHORTCUTS } from '../shared/new-chat-shortcuts/preference';
 import { DEFAULT_APPEARANCE, isAppearancePreference } from '../shared/theme/appearance';
 import { DEFAULT_FLOATING_CHAT_LAYOUT, isFloatingChatLayout } from '../shared/types/floating-chat';
 import { PROVIDER_ENDPOINT_MODES, PROVIDER_TYPES, type ProviderType } from '../shared/types/provider';
 
-const VERSION = 8;
+const VERSION = 9;
 
 export async function runMigrations(storage: StorageArea): Promise<void> {
   const current = (await storage.get<number>(STORAGE_KEYS.migrations)) ?? 0;
@@ -42,9 +42,9 @@ export async function runMigrations(storage: StorageArea): Promise<void> {
   }
   if (current < 5) {
     // v5: the new-conversation suggestions can be swapped for saved skills. Start from the four
-    // built-in quick actions that were shown before.
+    // built-in quick actions that were shown before; v9 then updates them like any untouched default.
     const shortcuts = await storage.get(STORAGE_KEYS.newChatShortcuts);
-    if (!Array.isArray(shortcuts)) await storage.set(STORAGE_KEYS.newChatShortcuts, DEFAULT_NEW_CHAT_SHORTCUTS);
+    if (!Array.isArray(shortcuts)) await storage.set(STORAGE_KEYS.newChatShortcuts, PREVIOUS_DEFAULT_NEW_CHAT_SHORTCUTS);
   }
   if (current < 6) {
     // v6: light / dark appearance beside the accent color. Everyone starts by following Chrome.
@@ -66,6 +66,13 @@ export async function runMigrations(storage: StorageArea): Promise<void> {
         delete rest.providerId;
         return rest;
       }));
+    }
+  }
+  if (current < 9) {
+    // v9: the default “解释” shortcut became “生成演示文稿PPT”. Only untouched defaults change; a customized list stays.
+    const shortcuts = await storage.get<unknown>(STORAGE_KEYS.newChatShortcuts);
+    if (JSON.stringify(shortcuts) === JSON.stringify(PREVIOUS_DEFAULT_NEW_CHAT_SHORTCUTS)) {
+      await storage.set(STORAGE_KEYS.newChatShortcuts, DEFAULT_NEW_CHAT_SHORTCUTS);
     }
   }
   await storage.set(STORAGE_KEYS.migrations, VERSION);

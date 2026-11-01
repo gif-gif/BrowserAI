@@ -42,7 +42,7 @@ describe('PreferencesRepository', () => {
     const fresh = new FakeStorageArea();
     await runMigrations(fresh);
     expect(fresh.snapshot()[STORAGE_KEYS.skills]).toEqual([]);
-    expect(fresh.snapshot()[STORAGE_KEYS.migrations]).toBe(8);
+    expect(fresh.snapshot()[STORAGE_KEYS.migrations]).toBe(9);
   });
   it('clears saved skills in the v4 migration and keeps skills added afterwards', async () => {
     const upgraded = new FakeStorageArea();
@@ -50,7 +50,7 @@ describe('PreferencesRepository', () => {
     await upgraded.set(STORAGE_KEYS.skills, [{ id: 'a', name: 'hi', prompt: '打招呼', createdAt: 1, updatedAt: 1 }]);
     await runMigrations(upgraded);
     expect(upgraded.snapshot()[STORAGE_KEYS.skills]).toEqual([]);
-    expect(upgraded.snapshot()[STORAGE_KEYS.migrations]).toBe(8);
+    expect(upgraded.snapshot()[STORAGE_KEYS.migrations]).toBe(9);
 
     const added = [{ id: 'b', name: '摘要', prompt: '提炼', createdAt: 2, updatedAt: 2 }];
     await upgraded.set(STORAGE_KEYS.skills, added);
@@ -63,11 +63,11 @@ describe('PreferencesRepository', () => {
     await runMigrations(upgraded);
     expect(upgraded.snapshot()[STORAGE_KEYS.newChatShortcuts]).toEqual([
       { type: 'action', id: 'summarize' },
-      { type: 'action', id: 'explain' },
+      { type: 'action', id: 'slide-deck' },
       { type: 'action', id: 'translate' },
       { type: 'action', id: 'tech-stack' },
     ]);
-    expect(upgraded.snapshot()[STORAGE_KEYS.migrations]).toBe(8);
+    expect(upgraded.snapshot()[STORAGE_KEYS.migrations]).toBe(9);
 
     const custom = [{ type: 'skill', id: 'skill-1' }];
     const kept = new FakeStorageArea();
@@ -81,13 +81,38 @@ describe('PreferencesRepository', () => {
     await upgraded.set(STORAGE_KEYS.migrations, 5);
     await runMigrations(upgraded);
     expect(upgraded.snapshot()[STORAGE_KEYS.appearancePreference]).toBe('system');
-    expect(upgraded.snapshot()[STORAGE_KEYS.migrations]).toBe(8);
+    expect(upgraded.snapshot()[STORAGE_KEYS.migrations]).toBe(9);
 
     const kept = new FakeStorageArea();
     await kept.set(STORAGE_KEYS.migrations, 5);
     await kept.set(STORAGE_KEYS.appearancePreference, 'dark');
     await runMigrations(kept);
     expect(kept.snapshot()[STORAGE_KEYS.appearancePreference]).toBe('dark');
+  });
+  it('swaps the untouched default “解释” shortcut for the slide deck in the v9 migration', async () => {
+    const previous = [
+      { type: 'action', id: 'summarize' },
+      { type: 'action', id: 'explain' },
+      { type: 'action', id: 'translate' },
+      { type: 'action', id: 'tech-stack' },
+    ];
+    const upgraded = new FakeStorageArea();
+    await upgraded.set(STORAGE_KEYS.migrations, 8);
+    await upgraded.set(STORAGE_KEYS.newChatShortcuts, previous);
+    await runMigrations(upgraded);
+    expect(upgraded.snapshot()[STORAGE_KEYS.newChatShortcuts]).toEqual([
+      { type: 'action', id: 'summarize' },
+      { type: 'action', id: 'slide-deck' },
+      { type: 'action', id: 'translate' },
+      { type: 'action', id: 'tech-stack' },
+    ]);
+
+    const custom = [{ type: 'action', id: 'explain' }, { type: 'action', id: 'summarize' }];
+    const kept = new FakeStorageArea();
+    await kept.set(STORAGE_KEYS.migrations, 8);
+    await kept.set(STORAGE_KEYS.newChatShortcuts, custom);
+    await runMigrations(kept);
+    expect(kept.snapshot()[STORAGE_KEYS.newChatShortcuts]).toEqual(custom);
   });
   it('runs v1 migration idempotently', async () => {
     const storage = new FakeStorageArea();

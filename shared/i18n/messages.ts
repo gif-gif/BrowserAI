@@ -1,4 +1,5 @@
 import type { CatalogSkillId, CatalogSkillText, SkillCategory } from '../skills/skill-catalog';
+import type { QuickActionId } from '../new-chat-shortcuts/preference';
 
 export type AppLocale = 'zh-CN' | 'zh-TW' | 'en';
 
@@ -67,7 +68,8 @@ export interface AppMessages {
   quickQuestions: string;
   quickActionPageUnavailable: string;
   techStackAnalysisFailed: string;
-  quickActions: Array<{ id: 'summarize' | 'explain' | 'translate' | 'tech-stack'; label: string; description: string; prompt: string }>;
+  /** The “slide-deck” action runs the make-a-slide-deck catalog skill, so its label and prompt come from there. */
+  quickActions: Array<{ id: QuickActionId; label: string; description: string; prompt: string }>;
   conversationContext: string;
   context: string;
   noPageContext: string;

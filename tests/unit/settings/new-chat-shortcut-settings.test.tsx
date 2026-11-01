@@ -38,7 +38,7 @@ describe('new chat shortcuts', () => {
       await user.click(screen.getByRole('combobox', { name: `快捷方式 ${slot}` }));
       await user.click(screen.getByRole('option', { name: option }));
     };
-    expect(screen.getByRole('combobox', { name: '快捷方式 2' })).toHaveTextContent('解释');
+    expect(screen.getByRole('combobox', { name: '快捷方式 2' })).toHaveTextContent('生成演示文稿PPT');
     await pick(2, '周报');
     expect(set).toHaveBeenLastCalledWith({ [STORAGE_KEYS.newChatShortcuts]: [
       { type: 'action', id: 'summarize' },

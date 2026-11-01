@@ -401,6 +401,23 @@ describe('Side Panel chat flow', () => {
     }));
   });
 
+  it('runs the slide-deck shortcut as its skill with the current page attached', async () => {
+    const user = userEvent.setup();
+    const port = createPort();
+    const withoutSelection = activeState();
+    if (withoutSelection.context.status === 'ready') delete withoutSelection.context.snapshot.selection;
+    render(<App dependencies={dependencies({ port, states: [withoutSelection] })} />);
+
+    await user.click(await screen.findByRole('button', { name: '生成演示文稿PPT' }));
+
+    expect(port.postMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'START_CHAT',
+      text: '',
+      skill: { name: '生成演示文稿PPT', prompt: expect.stringContaining('```slides') },
+      contextSelection: expect.objectContaining({ includePage: true }),
+    }));
+  });
+
   it('extracts the original content tab before running a page quick action when context is unavailable', async () => {
     const user = userEvent.setup();
     const port = createPort();

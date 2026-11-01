@@ -806,10 +806,14 @@ function ConnectedSidePanel({ dependencies }: { dependencies: SidePanelDependenc
         return;
       }
 
+      // The slide-deck shortcut runs its catalog skill, so the turn shows “/name” like a typed skill.
+      const skill = action.id === 'slide-deck' ? { name: action.label, prompt: action.prompt } : undefined;
+      const text = skill ? '' : action.prompt;
+
       // With a selection in the composer, a page shortcut acts on that selection
       // only; the whole page is used when nothing is selected.
       if (selectionForRender.includeSelection && selectionText) {
-        startChat(state, action.prompt, [], false, false, undefined, undefined, false);
+        startChat(state, text, [], false, false, undefined, skill, false);
         return;
       }
 
@@ -842,7 +846,7 @@ function ConnectedSidePanel({ dependencies }: { dependencies: SidePanelDependenc
         }
       }
 
-      startChat(state, action.prompt, [], true);
+      startChat(state, text, [], true, false, undefined, skill);
     } finally {
       quickActionBusyRef.current = false;
       setQuickActionBusy(false);
