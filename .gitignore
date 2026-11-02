@@ -23,3 +23,7 @@ pnpm-debug.log*
 !.vscode/extensions.json
 .idea/
 .DS_Store
+
+# Local store listing and website assets
+chrome-web-store/
+website/
