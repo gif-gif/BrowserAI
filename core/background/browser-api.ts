@@ -5,6 +5,7 @@ export interface BackgroundTab {
   windowId?: number;
   url?: string;
   pendingUrl?: string;
+  status?: string;
 }
 
 export interface BackgroundMessageSender {

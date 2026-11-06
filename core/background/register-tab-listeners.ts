@@ -1,4 +1,4 @@
-import { createNavigationKey } from '../page-context/navigation-key';
+import { createNavigationKey, isNavigationKeyFor } from '../page-context/navigation-key';
 import type { BackgroundBrowserApi } from './browser-api';
 
 interface TabLifecycleService {
@@ -7,6 +7,8 @@ interface TabLifecycleService {
 }
 
 interface TabListenerOptions {
+  /** The navigation key the background already holds for the tab, if any. */
+  currentNavigationKey?(tabId: number): string | undefined;
   navigationChanged?(tabId: number, navigationKey: string): void;
   tabClosed?(tabId: number): void;
   afterTabClosed?(): Promise<void> | void;
@@ -23,6 +25,10 @@ export function registerTabListeners(
   };
   const onUpdated = (tabId: number, changeInfo: { url?: string }) => {
     if (!changeInfo.url) return;
+    // The content script usually reports a same-document navigation first, with
+    // its own revision. Chrome's later URL update must not reset that key.
+    const current = options.currentNavigationKey?.(tabId);
+    if (current && isNavigationKeyFor(current, changeInfo.url)) return;
     const navigationKey = createNavigationKey(changeInfo.url);
     options.navigationChanged?.(tabId, navigationKey);
     activeTabs.navigationChanged(tabId, navigationKey);

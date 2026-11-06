@@ -24,7 +24,9 @@ export function observeSpaNavigation(
   const originalPushState = window.history.pushState.bind(window.history);
   const originalReplaceState = window.history.replaceState.bind(window.history);
   window.history.pushState = (...args) => { originalPushState(...args); notify(); };
-  window.history.replaceState = (...args) => { originalReplaceState(...args); notify(); };
+  // Sites such as GitHub call replaceState to update history state without
+  // navigating; only a URL change counts as a new page there.
+  window.history.replaceState = (...args) => { originalReplaceState(...args); notifyIfChanged(); };
   window.addEventListener('popstate', notify);
   window.addEventListener('hashchange', notifyIfChanged);
   const interval = options.pollIntervalMs === 0

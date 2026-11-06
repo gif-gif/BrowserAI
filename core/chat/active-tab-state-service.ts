@@ -34,7 +34,20 @@ export interface ActiveTabStateServiceOptions {
   getPageAccess?(tabId: number, url: string): Promise<PageAccessPolicy>;
 }
 
+/**
+ * The background and the content script count same-URL navigations on their
+ * own: a reload restarts the page count, and tabs.onUpdated resets the
+ * background count while the page keeps its own. A snapshot whose URL still
+ * matches the tab belongs to the current page, so its key is the one to keep.
+ */
+function belongsToTab(snapshot: ExtractedPageContext, tab: ActiveTabDescriptor): boolean {
+  if (snapshot.tabId !== tab.tabId) return false;
+  return snapshot.metadata.navigationKey === tab.navigationKey || snapshot.url === tab.url;
+}
+
 export class ActiveTabStateService {
+  private navigationAdopted?: (tabId: number, navigationKey: string) => void;
+
   constructor(
     private readonly sessions: TabSessionService,
     private readonly snapshots: ContextSnapshotService,
@@ -49,7 +62,7 @@ export class ActiveTabStateService {
     return {
       tabId: tab.tabId,
       url: tab.url,
-      navigationKey: tab.navigationKey,
+      navigationKey: context.status === 'ready' ? context.snapshot.metadata.navigationKey : tab.navigationKey,
       conversation,
       context,
     };
@@ -71,6 +84,11 @@ export class ActiveTabStateService {
       conversation,
       context: { status: 'ready', snapshot: current },
     };
+  }
+
+  /** Called when the content script's navigation key replaces the background's for the same URL. */
+  setNavigationListener(listener: (tabId: number, navigationKey: string) => void): void {
+    this.navigationAdopted = listener;
   }
 
   /** Extracts page context for a tab without binding a conversation to it (used for “@” mentioned tabs). */
@@ -98,8 +116,11 @@ export class ActiveTabStateService {
         };
       } else try {
         const snapshot = await this.extractPage(tab.tabId, tab.url, tab.navigationKey);
-        if (snapshot.tabId !== tab.tabId || snapshot.metadata.navigationKey !== tab.navigationKey) {
+        if (!belongsToTab(snapshot, tab)) {
           throw new AppError('CONTEXT_STALE', '页面在提取期间发生变化');
+        }
+        if (snapshot.metadata.navigationKey !== tab.navigationKey) {
+          this.navigationAdopted?.(tab.tabId, snapshot.metadata.navigationKey);
         }
         this.snapshots.store(snapshot);
         context = { status: 'ready', snapshot };

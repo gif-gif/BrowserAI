@@ -230,6 +230,35 @@ async function extractMentionedTab(
   throw new AppError('CONTEXT_STALE', '页面上下文尚未准备完成，请重试');
 }
 
+const TAB_LOAD_WAIT_MS = 5_000;
+const EXTRACTION_RETRY_DELAY_MS = 400;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => { setTimeout(resolve, ms); });
+}
+
+/** Resolves once the tab stops loading, or after a short limit so a slow page still gets read. */
+async function waitForTabLoad(api: BackgroundBrowserApi, tabId: number): Promise<void> {
+  if (!api.tabs.get) return;
+  let finish = () => undefined as void;
+  const loaded = new Promise<void>((resolve) => {
+    const onUpdated = (updatedTabId: number, change: { status?: string }) => {
+      if (updatedTabId === tabId && change.status === 'complete') finish();
+    };
+    const timer = setTimeout(() => finish(), TAB_LOAD_WAIT_MS);
+    finish = () => {
+      clearTimeout(timer);
+      api.tabs.onUpdated.removeListener(onUpdated);
+      resolve();
+    };
+    // Listen before reading the status so a load that ends in between is not missed.
+    api.tabs.onUpdated.addListener(onUpdated);
+  });
+  const tab = await api.tabs.get(tabId).catch(() => undefined);
+  if (tab?.status !== 'loading') finish();
+  await loaded;
+}
+
 function createRuntimeHandlers(
   api: BackgroundBrowserApi,
   services: BackgroundServices,
@@ -424,12 +453,22 @@ function createRuntimeHandlers(
       }
     },
     EXTRACT_PAGE_CONTEXT: async (command) => {
-      const tab = await lookupTab(api, command.tabId);
-      const state = await services.activeTabs.open({
-        tabId: tab.id,
-        url: tab.url,
-        navigationKey: navigationKeyFor(tab),
-      });
+      await waitForTabLoad(api, command.tabId);
+      const extract = async () => {
+        const tab = await lookupTab(api, command.tabId);
+        return services.activeTabs.open({
+          tabId: tab.id,
+          url: tab.url,
+          navigationKey: navigationKeyFor(tab),
+        });
+      };
+      let state = await extract();
+      // A page shortcut is a user gesture: a page that changed or was still
+      // settling during the first read gets one more attempt before failing.
+      if (state.context.status === 'unavailable' && state.context.reason === 'CONTEXT_EXTRACTION_FAILED') {
+        await delay(EXTRACTION_RETRY_DELAY_MS);
+        state = await extract();
+      }
       if (state.context.status !== 'ready') {
         if (state.context.status === 'unavailable') {
           throw new AppError(
@@ -623,10 +662,12 @@ export function startBackground(
   const rememberNavigation = (tabId: number, navigationKey: string) => { navigationKeys.set(tabId, navigationKey); };
   const disposers: Array<() => void> = [];
   services.chat.setTabExtractor?.((tabId) => extractMentionedTab(api, services, navigationKeyFor, tabId));
+  services.activeTabs.setNavigationListener?.(rememberNavigation);
 
   disposers.push(registerRuntimeMessages(api, services, (tab) => sidePanels.open(tab), navigationKeyFor, rememberNavigation));
   disposers.push(registerChatPorts(api, services));
   disposers.push(registerTabListeners(api.tabs, services.activeTabs, {
+    currentNavigationKey: (tabId) => navigationKeys.get(tabId),
     navigationChanged: rememberNavigation,
     tabClosed: (tabId) => {
       navigationKeys.delete(tabId);

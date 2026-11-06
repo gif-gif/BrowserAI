@@ -46,6 +46,40 @@ describe('tab switching integration', () => {
     expect(extract).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps a same-URL snapshot whose navigation key differs and reports the page key', async () => {
+    // A reload or an onUpdated reset leaves the background and the page with different counts.
+    const { service, snapshots } = setup(vi.fn(async (tabId: number, url: string) => ({
+      snapshotId: 'snapshot-reloaded', tabId, title: 'Repo', url,
+      document: { text: 'repo readme', extractionMethod: 'innerText' as const },
+      metadata: { extractedAt: 1, originalCharacterCount: 11, submittedCharacterCount: 11, truncated: false, navigationKey: `${url}#chrome-ai-navigation-0` },
+    })));
+    const adopted = vi.fn();
+    service.setNavigationListener(adopted);
+    const url = 'https://github.com/heydamir/unslop';
+
+    const state = await service.open({ tabId: 4, url, navigationKey: `${url}#chrome-ai-navigation-3` });
+
+    expect(state.context).toMatchObject({ status: 'ready', snapshot: { snapshotId: 'snapshot-reloaded' } });
+    expect(state.navigationKey).toBe(`${url}#chrome-ai-navigation-0`);
+    expect(adopted).toHaveBeenCalledWith(4, `${url}#chrome-ai-navigation-0`);
+    expect(snapshots.requireCurrent(4, 'snapshot-reloaded').document?.text).toBe('repo readme');
+  });
+
+  it('still rejects a snapshot taken after the page moved to another URL', async () => {
+    const { service } = setup(vi.fn(async (tabId: number) => ({
+      snapshotId: 'snapshot-other', tabId, title: 'Issues', url: 'https://github.com/heydamir/unslop/issues',
+      document: { text: 'issues', extractionMethod: 'innerText' as const },
+      metadata: { extractedAt: 1, originalCharacterCount: 6, submittedCharacterCount: 6, truncated: false, navigationKey: 'https://github.com/heydamir/unslop/issues#chrome-ai-navigation-1' },
+    })));
+    const adopted = vi.fn();
+    service.setNavigationListener(adopted);
+
+    const state = await service.open({ tabId: 4, url: 'https://github.com/heydamir/unslop', navigationKey: 'https://github.com/heydamir/unslop#chrome-ai-navigation-0' });
+
+    expect(state.context).toMatchObject({ status: 'unavailable', reason: 'CONTEXT_EXTRACTION_FAILED' });
+    expect(adopted).not.toHaveBeenCalled();
+  });
+
   it('returns chat-only state for restricted pages', async () => {
     const { service, extract } = setup();
     const state = await service.open({ tabId: 9, url: 'chrome://settings', navigationKey: 'restricted' });

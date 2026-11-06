@@ -117,4 +117,16 @@ describe('content extraction messaging', () => {
     expect(listener.mock.lastCall?.[0]).toMatchObject({ url: expect.stringContaining('/final') });
     stop();
   });
+
+  it('ignores replaceState calls that keep the same URL', () => {
+    history.replaceState({}, '', '/repo');
+    const listener = vi.fn();
+    const stop = observeSpaNavigation(window, listener, { pollIntervalMs: 0 });
+    history.replaceState({ turbo: 1 }, '', '/repo');
+    history.replaceState({ turbo: 2 }, '');
+    expect(listener).not.toHaveBeenCalled();
+    history.replaceState({}, '', '/repo/issues');
+    expect(listener).toHaveBeenCalledOnce();
+    stop();
+  });
 });

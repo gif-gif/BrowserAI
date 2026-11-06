@@ -36,7 +36,7 @@ function createBrowser() {
     action: { onClicked: actionClicked },
     tabs: {
       query: queryActiveTab,
-      get: vi.fn(async (tabId: number) => ({ id: tabId, url: 'https://example.test/article' })),
+      get: vi.fn(async (tabId: number): Promise<BackgroundTab> => ({ id: tabId, url: 'https://example.test/article' })),
       sendMessage: vi.fn(),
       onRemoved: tabRemoved,
       onUpdated: tabUpdated,
@@ -103,7 +103,7 @@ function createServices(): BackgroundServices {
     activeTabs: {
       open: vi.fn(async ({ tabId, url, navigationKey }) => ({ tabId, url, navigationKey, conversation: { id: 'c1' }, context: { status: 'unavailable' } })),
       reopen: vi.fn(async ({ tabId, url, navigationKey }) => ({ tabId, url, navigationKey, conversation: { id: 'c1' }, context: { status: 'unavailable' } })),
-      navigationChanged: vi.fn(), closeTab: vi.fn(),
+      navigationChanged: vi.fn(), closeTab: vi.fn(), setNavigationListener: vi.fn(),
     },
     providers: {
       adapters: {
@@ -201,8 +201,62 @@ describe('background lifecycle and router handlers', () => {
 
     tabUpdated.listeners[0]!(7, { url: 'https://example.test/next' }, { id: 7, url: 'https://example.test/next' });
     expect(services.activeTabs.navigationChanged).toHaveBeenCalledWith(7, 'https://example.test/next#chrome-ai-navigation-0');
+
+    // The page reported this navigation first; Chrome's URL update must not reset its revision.
+    await runtimeListener({
+      version: 1, requestId: 'nav-spa', type: 'PAGE_NAVIGATION_CHANGED',
+      url: 'https://example.test/spa', navigationKey: 'https://example.test/spa#chrome-ai-navigation-2',
+    }, { tab: { id: 7, url: 'https://example.test/spa' } });
+    vi.mocked(services.activeTabs.navigationChanged).mockClear();
+    tabUpdated.listeners[0]!(7, { url: 'https://example.test/spa' }, { id: 7, url: 'https://example.test/spa' });
+    expect(services.activeTabs.navigationChanged).not.toHaveBeenCalled();
     await tabRemoved.listeners[0]!(7);
     expect(services.activeTabs.closeTab).toHaveBeenCalledWith(7);
+  });
+
+  it('waits for a loading tab and retries a failed page read once for page shortcuts', async () => {
+    vi.useFakeTimers();
+    try {
+      const { browser, runtimeMessage, tabUpdated } = createBrowser();
+      const services = createServices();
+      vi.mocked(browser.tabs.get).mockResolvedValue({ id: 7, url: 'https://example.test/article', status: 'loading' });
+      const snapshot = { snapshotId: 's-ready', tabId: 7 };
+      vi.mocked(services.activeTabs.open)
+        .mockResolvedValueOnce({ tabId: 7, url: 'https://example.test/article', navigationKey: 'k', conversation: { id: 'c1' }, context: { status: 'unavailable', reason: 'CONTEXT_EXTRACTION_FAILED', message: 'not yet' } } as never)
+        .mockResolvedValueOnce({ tabId: 7, url: 'https://example.test/article', navigationKey: 'k', conversation: { id: 'c1' }, context: { status: 'ready', snapshot } } as never);
+      startBackground(browser, { services, migrate: vi.fn(), reconcile: vi.fn(), cleanup: vi.fn() });
+
+      const response = runtimeMessage.listeners[0]!({ version: 1, requestId: 'extract-1', type: 'EXTRACT_PAGE_CONTEXT', tabId: 7 }, {});
+      await vi.advanceTimersByTimeAsync(0);
+      expect(services.activeTabs.open).not.toHaveBeenCalled();
+
+      tabUpdated.listeners.forEach((listener) => listener(7, { status: 'complete' }, { id: 7, url: 'https://example.test/article' }));
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      await expect(response).resolves.toMatchObject({ ok: true, data: { snapshotId: 's-ready' } });
+      expect(services.activeTabs.open).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reads a page that never finishes loading after the wait limit', async () => {
+    vi.useFakeTimers();
+    try {
+      const { browser, runtimeMessage } = createBrowser();
+      const services = createServices();
+      vi.mocked(browser.tabs.get).mockResolvedValue({ id: 7, url: 'https://example.test/article', status: 'loading' });
+      vi.mocked(services.activeTabs.open).mockResolvedValue({ tabId: 7, url: 'https://example.test/article', navigationKey: 'k', conversation: { id: 'c1' }, context: { status: 'ready', snapshot: { snapshotId: 's-slow' } } } as never);
+      startBackground(browser, { services, migrate: vi.fn(), reconcile: vi.fn(), cleanup: vi.fn() });
+
+      const response = runtimeMessage.listeners[0]!({ version: 1, requestId: 'extract-2', type: 'EXTRACT_PAGE_CONTEXT', tabId: 7 }, {});
+      await vi.advanceTimersByTimeAsync(5_000);
+
+      await expect(response).resolves.toMatchObject({ ok: true, data: { snapshotId: 's-slow' } });
+      expect(services.activeTabs.open).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('opens the floating chat in the page, hides it for the side panel, and restores it after a reload', async () => {
