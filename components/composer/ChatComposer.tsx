@@ -85,6 +85,25 @@ function PlusIcon() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>;
 }
 
+/**
+ * Puts text at the last caret (replacing a selection), or at the end when the
+ * caret is unknown or belongs to an older value. Text added after existing
+ * content that does not end in a line break starts on a new line.
+ */
+export function insertAtCaret(
+  value: string,
+  text: string,
+  caret?: { value: string; start: number; end: number },
+): { value: string; caret: number } {
+  const known = caret && caret.value === value;
+  const start = known ? Math.min(caret.start, caret.end) : value.length;
+  const end = known ? Math.max(caret.start, caret.end) : value.length;
+  const before = value.slice(0, start);
+  const separator = end === value.length && before && !/\n$/u.test(before) ? '\n' : '';
+  const inserted = `${separator}${text}`;
+  return { value: `${before}${inserted}${value.slice(end)}`, caret: start + inserted.length };
+}
+
 function SendIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -274,6 +293,9 @@ export function ChatComposer({
   const activeSkillRow = Math.min(activeSkillIndex, Math.max(0, skillRowCount - 1));
   const [skillEditor, setSkillEditor] = useState<SkillDraft>();
   const [writingOpen, setWritingOpen] = useState(false);
+  // Last caret in the input, with the value it belongs to; opening the
+  // writing dialog moves focus away, and 插入 puts the text back there.
+  const caretRef = useRef<{ value: string; start: number; end: number }>(undefined);
   // The “/query” the editor was opened from: a new skill replaces it, otherwise the picker reopens.
   const pendingSkillQueryRef = useRef<MentionQuery | undefined>(undefined);
   const menuTabs = menuTabsFrom(menuTabList);
@@ -918,6 +940,10 @@ export function ChatComposer({
             onChange(event.target.value);
             updateMention(event.target.value, event.target.selectionStart ?? event.target.value.length);
           }}
+          onSelect={(event) => {
+            const { value: current, selectionStart, selectionEnd } = event.currentTarget;
+            caretRef.current = { value: current, start: selectionStart, end: selectionEnd };
+          }}
           onKeyDown={handleKeyDown}
           onBlur={() => {
             if (pickerOpen) closeTabPicker();
@@ -977,8 +1003,10 @@ export function ChatComposer({
           skills={skills}
           rewrite={writingRewrite}
           onUse={(text) => {
-            onChange(text);
+            const next = insertAtCaret(value, text, caretRef.current);
+            onChange(next.value);
             textareaRef.current?.focus();
+            requestAnimationFrame(() => textareaRef.current?.setSelectionRange(next.caret, next.caret));
           }}
           onClose={() => setWritingOpen(false)}
         />

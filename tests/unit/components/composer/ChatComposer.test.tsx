@@ -1,8 +1,8 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { ChatComposer } from '../../../../components/composer/ChatComposer';
+import { ChatComposer, insertAtCaret } from '../../../../components/composer/ChatComposer';
 import { AppError } from '../../../../shared/errors/app-error';
 
 function ControlledComposer({ onSend = vi.fn(), streaming = false, onStop = vi.fn() }) {
@@ -707,7 +707,7 @@ describe('ChatComposer', () => {
     expect(row).not.toHaveClass('chat-composer__row--multiline');
   });
 
-  it('opens the AI Writing Assistant from the “+” menu and puts the polished text into the input', async () => {
+  it('opens the AI Writing Assistant from the “+” menu and inserts the polished text after the draft', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     const rewrite = vi.fn(async () => '润色后的文字');
@@ -747,7 +747,7 @@ describe('ChatComposer', () => {
     });
 
     await user.click(within(dialog).getByRole('button', { name: '插入' }));
-    expect(onChange).toHaveBeenCalledWith('润色后的文字');
+    expect(onChange).toHaveBeenCalledWith('原始草稿\n润色后的文字');
     expect(screen.queryByRole('dialog', { name: 'AI 写作助手' })).not.toBeInTheDocument();
   });
 
@@ -799,7 +799,7 @@ describe('ChatComposer', () => {
     expect(remaining).toHaveLength(1);
 
     await user.click(within(remaining[0]!).getByRole('button', { name: '插入' }));
-    expect(onChange).toHaveBeenCalledWith('第一版');
+    expect(onChange).toHaveBeenCalledWith('草稿\n第一版');
     expect(screen.queryByRole('dialog', { name: 'AI 写作助手' })).not.toBeInTheDocument();
   });
 
@@ -829,6 +829,27 @@ describe('ChatComposer', () => {
     }));
     const item = (await within(dialog).findByText('邮件版')).closest('[role="listitem"]') as HTMLElement;
     expect(within(item).getByText('写成邮件')).toBeInTheDocument();
+  });
+
+  it('inserts the polished text at the caret the input had before the dialog opened', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<ChatComposer value="前面后面" onChange={onChange} onSend={vi.fn()} writingRewrite={vi.fn(async () => '【插入】')} />);
+    const input = screen.getByRole('textbox');
+    await user.click(input);
+    act(() => {
+      (input as HTMLTextAreaElement).setSelectionRange(2, 2);
+      fireEvent.select(input);
+    });
+
+    await user.click(screen.getByRole('button', { name: '添加内容' }));
+    await user.click(screen.getByRole('menuitem', { name: 'AI 写作助手' }));
+    const dialog = await screen.findByRole('dialog', { name: 'AI 写作助手' });
+    await user.click(within(dialog).getByRole('button', { name: '开始润色' }));
+    await within(dialog).findByText('【插入】');
+    await user.click(within(dialog).getByRole('button', { name: '插入' }));
+
+    expect(onChange).toHaveBeenLastCalledWith('前面【插入】后面');
   });
 
   it('shows three results in full and scrolls the list once a fourth arrives', async () => {
@@ -886,5 +907,17 @@ describe('ChatComposer', () => {
 
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('insertAtCaret', () => {
+  it('inserts at the caret, replaces a selection, and appends on a new line otherwise', () => {
+    expect(insertAtCaret('前面后面', 'X', { value: '前面后面', start: 2, end: 2 })).toEqual({ value: '前面X后面', caret: 3 });
+    expect(insertAtCaret('abcdef', 'X', { value: 'abcdef', start: 1, end: 4 })).toEqual({ value: 'aXef', caret: 2 });
+    expect(insertAtCaret('草稿', '结果')).toEqual({ value: '草稿\n结果', caret: 5 });
+    expect(insertAtCaret('草稿\n', '结果')).toEqual({ value: '草稿\n结果', caret: 5 });
+    expect(insertAtCaret('', '结果')).toEqual({ value: '结果', caret: 2 });
+    // A caret recorded for an older value is ignored.
+    expect(insertAtCaret('新内容', 'X', { value: '旧', start: 0, end: 0 })).toEqual({ value: '新内容\nX', caret: 5 });
   });
 });
