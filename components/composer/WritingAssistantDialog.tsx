@@ -182,7 +182,7 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
               value={instruction}
               maxLength={MAX_INSTRUCTION_LENGTH}
               aria-label={messages.writingAssistantContext}
-              placeholder={messages.writingAssistantComposerPlaceholder}
+              placeholder={messages.writingAssistantContext}
               readOnly={generating}
               onChange={(event) => setInstruction(event.target.value)}
             />

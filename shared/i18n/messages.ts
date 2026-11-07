@@ -374,7 +374,6 @@ export interface AppMessages {
   writingAssistantMenu: string;
   writingAssistantInputPlaceholder: string;
   writingAssistantUseInComposer: string;
-  writingAssistantComposerPlaceholder: string;
   writingAssistantDeleteResult: string;
   newChatShortcuts: string;
   newChatShortcutsDescription: string;
