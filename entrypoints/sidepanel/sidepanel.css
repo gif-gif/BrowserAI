@@ -571,7 +571,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .writing-dialog__submit svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .writing-dialog__spinner { width: 16px; height: 16px; border: 2px solid color-mix(in srgb, var(--on-accent) 40%, transparent); border-top-color: var(--on-accent); border-radius: 50%; animation: panel-spin 800ms linear infinite; }
 /* Every polish stays in this list, newest first; it scrolls once it grows. */
-.writing-dialog__results { display: grid; gap: 8px; overflow-y: auto; overscroll-behavior: contain; }
+.writing-dialog__results { --writing-results-max: min(420px, 55vh); display: grid; gap: 8px; max-height: var(--writing-results-max); overflow-y: auto; overscroll-behavior: contain; }
 /* Up to three results show in full; the max-height set inline ends the list at the third. */
 .writing-dialog__results[data-scrollable] { padding-right: 2px; scrollbar-gutter: stable; }
 .writing-dialog__result { display: grid; gap: 6px; padding: 10px 12px 12px; border-radius: 12px; background: var(--blue-soft); }
@@ -590,7 +590,19 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .writing-dialog__result-actions .writing-dialog__icon-action[data-copied] { color: var(--blue); }
 .writing-dialog__result-actions .writing-dialog__delete:hover:not(:disabled) { color: var(--danger); background: var(--danger-soft); }
 .writing-dialog__icon-action svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.writing-dialog__result p { margin: 0; color: var(--ink); font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+.writing-dialog__result-body { color: var(--ink); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; user-select: text; }
+/* Long results show about eight lines and fade out until expanded. */
+.writing-dialog__result-body[data-collapsed] { max-height: calc(13px * 1.6 * 8); overflow: hidden; }
+.writing-dialog__result-body[data-overflowing] { -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent); mask-image: linear-gradient(to bottom, #000 70%, transparent); }
+.writing-dialog__result-body > :first-child { margin-top: 0; }
+.writing-dialog__result-body > :last-child { margin-bottom: 0; }
+.writing-dialog__result-body p { margin: .4em 0; }
+.writing-dialog__result-body ul, .writing-dialog__result-body ol { margin: .4em 0; padding-left: 20px; }
+.writing-dialog__result-body h1, .writing-dialog__result-body h2, .writing-dialog__result-body h3, .writing-dialog__result-body h4 { margin: .6em 0 .3em; font-size: 13px; font-weight: 650; }
+.writing-dialog__result-body pre { overflow-x: auto; padding: 8px; border-radius: 8px; background: var(--code-bg); }
+.writing-dialog__result-body code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: .9em; }
+.writing-dialog__result-toggle { justify-self: start; min-height: 24px; padding: 0 8px; margin-left: -8px; border: 0; border-radius: 12px; color: var(--blue); background: transparent; font-size: 12px; font-weight: 600; }
+.writing-dialog__result-toggle:hover { background: color-mix(in srgb, var(--blue) 12%, transparent); }
 
 .streaming-indicator__dots { display: inline-flex; align-items: center; gap: 3px; }
 .streaming-indicator__dots i { width: 4px; height: 4px; border-radius: 50%; background: var(--blue); animation: stream-pulse 1.2s ease-in-out infinite; }

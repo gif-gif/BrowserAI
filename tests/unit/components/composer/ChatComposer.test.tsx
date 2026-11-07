@@ -852,6 +852,37 @@ describe('ChatComposer', () => {
     expect(onChange).toHaveBeenLastCalledWith('前面【插入】后面');
   });
 
+  it('renders a result as Markdown and folds a long one behind 展开全部', async () => {
+    const user = userEvent.setup();
+    const long = ['**摘要：**这是一段很长的说明。', '', '* 第一点', '* 第二点'].join('\n');
+    // jsdom has no layout: report the body as taller than its clamp.
+    const heights = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('writing-dialog__result-body') ? 600 : 0;
+    });
+    try {
+      render(<ChatComposer value="在" onChange={vi.fn()} onSend={vi.fn()} writingRewrite={vi.fn(async () => long)} />);
+      await user.click(screen.getByRole('button', { name: '添加内容' }));
+      await user.click(screen.getByRole('menuitem', { name: 'AI 写作助手' }));
+      const dialog = await screen.findByRole('dialog', { name: 'AI 写作助手' });
+      await user.click(within(dialog).getByRole('button', { name: '开始润色' }));
+
+      const strong = await within(dialog).findByText('摘要');
+      expect(strong.tagName).toBe('STRONG');
+      expect(within(dialog).queryByText(/\*\*/u)).not.toBeInTheDocument();
+      expect(within(dialog).getAllByRole('listitem').some((item) => item.textContent === '第一点')).toBe(true);
+
+      const body = dialog.querySelector('.writing-dialog__result-body')!;
+      expect(body).toHaveAttribute('data-collapsed');
+      const toggle = within(dialog).getByRole('button', { name: '展开全部' });
+      expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      await user.click(toggle);
+      expect(body).not.toHaveAttribute('data-collapsed');
+      expect(within(dialog).getByRole('button', { name: '收起' })).toHaveAttribute('aria-expanded', 'true');
+    } finally {
+      heights.mockRestore();
+    }
+  });
+
   it('shows three results in full and scrolls the list once a fourth arrives', async () => {
     const user = userEvent.setup();
     // Each result card is 100px tall with an 8px gap, stacked from y=0.
@@ -880,7 +911,7 @@ describe('ChatComposer', () => {
       await polish(4);
       expect(list).toHaveAttribute('data-scrollable');
       // Ends at the bottom of the third card: 2 * 108 + 100.
-      expect(list.style.maxHeight).toBe('316px');
+      expect(list.style.maxHeight).toBe('min(316px, var(--writing-results-max))');
     } finally {
       rectSpy.mockRestore();
     }

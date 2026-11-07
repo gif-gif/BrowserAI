@@ -7,6 +7,8 @@ import type { AppLocale } from '../../shared/i18n/messages';
 import { WRITING_TONES, type WritingTone } from '../../shared/types/writing-assistant';
 import type { Skill, SkillInvocation } from '../../shared/types/skill';
 import { Select } from '../ui/Select';
+import { SafeMarkdown } from '../chat/SafeMarkdown';
+import { fixCjkEmphasis } from '../../shared/writing-assistant/cjk-emphasis';
 
 /** Mirrors the AI_WRITING_ASSIST contract limits. */
 const MAX_TEXT_LENGTH = 20_000;
@@ -125,7 +127,7 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], s
       return;
     }
     const first = list.children[0] as HTMLElement;
-    setResultListHeight(last.getBoundingClientRect().bottom - first.getBoundingClientRect().top);
+    setResultListHeight(Math.round(last.getBoundingClientRect().bottom - first.getBoundingClientRect().top));
   }, [results]);
 
   useEffect(() => {
@@ -242,7 +244,7 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], s
           <div
             ref={resultListRef}
             className="writing-dialog__results"
-            style={resultListHeight === undefined ? undefined : { maxHeight: resultListHeight }}
+            style={resultListHeight === undefined ? undefined : { maxHeight: `min(${resultListHeight}px, var(--writing-results-max))` }}
             data-scrollable={results.length > VISIBLE_RESULTS || undefined}
             role="list" aria-label={messages.writingAssistantResult} aria-live="polite">
             {results.map((item) => (
@@ -284,12 +286,47 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], s
                     </button>
                   </div>
                 </div>
-                <p>{item.text}</p>
+                <ResultBody text={item.text} expandLabel={messages.writingAssistantExpandResult} collapseLabel={messages.writingAssistantCollapseResult} />
               </section>
             ))}
           </div>
         ) : null}
       </form>
     </div>
+  );
+}
+
+/**
+ * A polished result rendered as Markdown (models often return lists and bold
+ * text). Long results are clamped to a few lines with a toggle so one answer
+ * cannot push the rest of the dialog out of view.
+ */
+function ResultBody({ text, expandLabel, collapseLabel }: { text: string; expandLabel: string; collapseLabel: string }) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    if (!body || expanded) return;
+    setOverflowing(body.scrollHeight > body.clientHeight + 1);
+  }, [text, expanded]);
+
+  return (
+    <>
+      <div
+        ref={bodyRef}
+        className="writing-dialog__result-body"
+        data-collapsed={!expanded || undefined}
+        data-overflowing={(overflowing && !expanded) || undefined}
+      >
+        <SafeMarkdown content={fixCjkEmphasis(text)} />
+      </div>
+      {overflowing ? (
+        <button type="button" className="writing-dialog__result-toggle" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>
+          {expanded ? collapseLabel : expandLabel}
+        </button>
+      ) : null}
+    </>
   );
 }
