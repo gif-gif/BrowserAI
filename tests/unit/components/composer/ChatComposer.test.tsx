@@ -751,6 +751,41 @@ describe('ChatComposer', () => {
     expect(screen.queryByRole('dialog', { name: 'AI 写作助手' })).not.toBeInTheDocument();
   });
 
+  it('keeps every polish as a list, newest first, with copy and use on each result', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    const rewrite = vi.fn()
+      .mockResolvedValueOnce('第一版')
+      .mockResolvedValueOnce('第二版');
+    render(<ChatComposer value="草稿" onChange={onChange} onSend={vi.fn()} writingRewrite={rewrite} />);
+
+    await user.click(screen.getByRole('button', { name: '添加内容' }));
+    await user.click(screen.getByRole('menuitem', { name: 'AI 写作助手' }));
+    const dialog = await screen.findByRole('dialog', { name: 'AI 写作助手' });
+    expect(within(dialog).queryByRole('list', { name: '润色结果' })).not.toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: '开始润色' }));
+    expect(await within(dialog).findByText('第一版')).toBeInTheDocument();
+    // Enter in the context box starts another polish, like the chat composer.
+    await user.type(within(dialog).getByRole('textbox', { name: '语境或要求（可选）' }), '更正式{Enter}');
+    expect(await within(dialog).findByText('第二版')).toBeInTheDocument();
+    expect(rewrite).toHaveBeenLastCalledWith(expect.objectContaining({ instruction: '更正式' }));
+
+    const items = within(within(dialog).getByRole('list', { name: '润色结果' })).getAllByRole('listitem');
+    expect(items.map((item) => item.querySelector('p')?.textContent)).toEqual(['第二版', '第一版']);
+
+    await user.click(within(items[1]!).getByRole('button', { name: '复制' }));
+    expect(writeText).toHaveBeenCalledWith('第一版');
+    expect(within(items[1]!).getByRole('button', { name: '已复制' })).toBeInTheDocument();
+    expect(within(items[0]!).getByRole('button', { name: '复制' })).toBeInTheDocument();
+
+    await user.click(within(items[1]!).getByRole('button', { name: '填入输入框' }));
+    expect(onChange).toHaveBeenCalledWith('第一版');
+    expect(screen.queryByRole('dialog', { name: 'AI 写作助手' })).not.toBeInTheDocument();
+  });
+
   it('asks for text before polishing and shows rewrite errors', async () => {
     const user = userEvent.setup();
     const rewrite = vi.fn(async () => { throw new AppError('CONFIG_MISSING', 'missing'); });

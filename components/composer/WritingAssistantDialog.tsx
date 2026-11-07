@@ -33,6 +33,13 @@ interface WritingAssistantDialogProps {
   rewrite?: (request: WritingRequest) => Promise<string>;
 }
 
+interface WritingResult {
+  id: string;
+  text: string;
+  tone: WritingTone;
+  model?: string;
+}
+
 function createRequestId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `writing-dialog-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
@@ -60,15 +67,18 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
   const { messages, locale } = useI18n();
   const titleId = useId();
   const textId = useId();
+  const instructionId = useId();
   const textRef = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState(initialText.slice(0, MAX_TEXT_LENGTH));
   const [tone, setTone] = useState<WritingTone>('polish');
   const [selectedModel, setSelectedModel] = useState(model && models.includes(model) ? model : '');
   const [instruction, setInstruction] = useState('');
-  const [result, setResult] = useState('');
+  // Newest first; every polish is kept so the user can pick any of them.
+  const [results, setResults] = useState<WritingResult[]>([]);
   const [error, setError] = useState<string>();
   const [generating, setGenerating] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copiedId, setCopiedId] = useState<string>();
+  const resultListRef = useRef<HTMLDivElement>(null);
   const rewriter = useMemo(() => rewrite ?? createDefaultRewriter(), [rewrite]);
 
   const toneLabels: Record<WritingTone, string> = {
@@ -100,7 +110,6 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
     }
     setGenerating(true);
     setError(undefined);
-    setCopied(false);
     try {
       const polished = (await rewriter({
         text: text.trim(),
@@ -109,7 +118,11 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
         model: selectedModel || undefined,
         locale,
       })).trim();
-      setResult(polished);
+      setResults((current) => [
+        { id: createRequestId(), text: polished, tone, ...(selectedModel ? { model: selectedModel } : {}) },
+        ...current,
+      ]);
+      resultListRef.current?.scrollTo?.({ top: 0 });
     } catch (cause) {
       setError(cause instanceof AppError ? localizeError(cause, messages) : messages.errors.UNKNOWN);
     } finally {
@@ -117,10 +130,10 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
     }
   }
 
-  async function copyResult() {
+  async function copyResult(item: WritingResult) {
     try {
-      await navigator.clipboard.writeText(result);
-      setCopied(true);
+      await navigator.clipboard.writeText(item.text);
+      setCopiedId(item.id);
     } catch {
       setError(messages.copyFailed);
     }
@@ -130,7 +143,12 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
     <div className="skill-dialog-overlay">
       <div className="skill-dialog-scrim" aria-hidden="true" onClick={onClose} />
       <form className="skill-dialog writing-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} onSubmit={(event) => { void submit(event); }}>
-        <h2 id={titleId}>{messages.writingAssistantTitle}</h2>
+        <div className="writing-dialog__header">
+          <h2 id={titleId}>{messages.writingAssistantTitle}</h2>
+          <button type="button" className="writing-dialog__close" aria-label={messages.writingAssistantClose} onClick={onClose}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+          </button>
+        </div>
         <p className="writing-dialog__description">{messages.writingAssistantDescription}</p>
         <div className="skill-dialog__field">
           <label htmlFor={textId}>{messages.writingAssistantOriginal}</label>
@@ -157,43 +175,58 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
             onChange={setSelectedModel}
           />
         </div>
-        <label className="skill-dialog__field">
-          <span>{messages.writingAssistantContext}</span>
-          <input
-            value={instruction}
-            maxLength={MAX_INSTRUCTION_LENGTH}
-            placeholder={messages.writingAssistantContextPlaceholder}
-            readOnly={generating}
-            onChange={(event) => setInstruction(event.target.value)}
-          />
-        </label>
-        {result ? (
-          <section className="writing-dialog__result" aria-label={messages.writingAssistantResult} aria-live="polite">
-            <h3>{messages.writingAssistantResult}</h3>
-            <p>{result}</p>
-          </section>
-        ) : null}
+        <div className="skill-dialog__field">
+          <label htmlFor={instructionId}>{messages.writingAssistantContext}</label>
+          {/* The instruction box doubles as the composer: Enter or the arrow starts a polish. */}
+          <div className="writing-dialog__composer">
+            <input
+              id={instructionId}
+              value={instruction}
+              maxLength={MAX_INSTRUCTION_LENGTH}
+              placeholder={messages.writingAssistantContextPlaceholder}
+              readOnly={generating}
+              onChange={(event) => setInstruction(event.target.value)}
+            />
+            <button
+              type="submit"
+              className="writing-dialog__submit"
+              aria-label={generating ? messages.writingAssistantGenerating : messages.writingAssistantGenerate}
+              aria-busy={generating}
+              disabled={generating || !rewriter}
+            >
+              {generating
+                ? <span className="writing-dialog__spinner" aria-hidden="true" />
+                : <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M14 7l5 5-5 5" /></svg>}
+            </button>
+          </div>
+        </div>
         {generating ? <p className="skill-dialog__status" role="status">{messages.writingAssistantGenerating}</p> : null}
         {error ? <p className="skill-dialog__error" role="alert">{error}</p> : null}
-        <div className="skill-dialog__actions">
-          {result ? (
-            <>
-              <button type="button" className="writing-dialog__copy" disabled={generating} onClick={() => { void copyResult(); }}>
-                {copied ? messages.copied : messages.copy}
-              </button>
-              {onUse ? (
-                <button type="button" disabled={generating} onClick={() => { onUse(result); onClose(); }}>
-                  {messages.writingAssistantUseInComposer}
-                </button>
-              ) : null}
-            </>
-          ) : (
-            <button type="button" onClick={onClose}>{messages.cancel}</button>
-          )}
-          <button type="submit" className="skill-dialog__save" disabled={generating || !rewriter}>
-            {generating ? messages.writingAssistantGenerating : messages.writingAssistantGenerate}
-          </button>
-        </div>
+        {results.length ? (
+          <div ref={resultListRef} className="writing-dialog__results" role="list" aria-label={messages.writingAssistantResult} aria-live="polite">
+            {results.map((item) => (
+              <section key={item.id} className="writing-dialog__result" role="listitem" aria-label={messages.writingAssistantResult}>
+                <div className="writing-dialog__result-header">
+                  <h3>
+                    {messages.writingAssistantResult}
+                    <span className="writing-dialog__result-meta">{toneLabels[item.tone]}{item.model ? ` · ${item.model}` : ''}</span>
+                  </h3>
+                  <div className="writing-dialog__result-actions">
+                    <button type="button" disabled={generating} onClick={() => { void copyResult(item); }}>
+                      {copiedId === item.id ? messages.copied : messages.copy}
+                    </button>
+                    {onUse ? (
+                      <button type="button" disabled={generating} onClick={() => { onUse(item.text); onClose(); }}>
+                        {messages.writingAssistantUseInComposer}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                <p>{item.text}</p>
+              </section>
+            ))}
+          </div>
+        ) : null}
       </form>
     </div>
   );

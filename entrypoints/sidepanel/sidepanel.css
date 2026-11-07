@@ -552,10 +552,31 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .skill-dialog__field textarea.writing-dialog__input { min-height: 72px; max-height: 160px; }
 .writing-dialog__row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .writing-dialog__description { margin: -6px 0 0; color: var(--muted); font-size: 12px; }
-.writing-dialog__result { display: grid; gap: 6px; padding: 12px; border-radius: 12px; background: var(--blue-soft); }
-.writing-dialog__result h3 { margin: 0; color: var(--muted-strong); font-size: 12px; font-weight: 600; }
-.writing-dialog__result p { margin: 0; max-height: 220px; overflow-y: auto; color: var(--ink); font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
-.skill-dialog__actions .writing-dialog__copy { margin-right: auto; }
+.writing-dialog__header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.writing-dialog__close { width: 32px; height: 32px; display: grid; place-items: center; margin: -6px -8px -6px 0; padding: 0; border: 0; border-radius: 50%; color: var(--muted-strong); background: transparent; }
+.writing-dialog__close:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.writing-dialog__close svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+/* Context input and the polish arrow share one rounded box, like the chat composer. */
+.writing-dialog__composer { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 4px; border: 1px solid var(--control-border); border-radius: 16px; background: var(--surface); box-shadow: 0 2px 8px rgba(30, 34, 45, .06); }
+.writing-dialog__composer:hover { border-color: var(--control-border-hover); }
+.writing-dialog__composer:focus-within { border-color: var(--blue); }
+.skill-dialog__field .writing-dialog__composer input { flex: 1; min-width: 0; border: 0; background: transparent; box-shadow: none; outline: none; }
+.writing-dialog__submit { width: 36px; min-width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 12px; color: var(--on-accent); background: var(--blue); transition: background-color 160ms ease, opacity 160ms ease; }
+.writing-dialog__submit:hover:not(:disabled) { background: var(--blue-hover); }
+.writing-dialog__submit:disabled { opacity: .5; }
+.writing-dialog__submit svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.writing-dialog__spinner { width: 16px; height: 16px; border: 2px solid color-mix(in srgb, var(--on-accent) 40%, transparent); border-top-color: var(--on-accent); border-radius: 50%; animation: panel-spin 800ms linear infinite; }
+/* Every polish stays in this list, newest first; it scrolls once it grows. */
+.writing-dialog__results { display: grid; gap: 8px; max-height: 320px; overflow-y: auto; overscroll-behavior: contain; }
+.writing-dialog__result { display: grid; gap: 6px; padding: 10px 12px 12px; border-radius: 12px; background: var(--blue-soft); }
+.writing-dialog__result-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.writing-dialog__result h3 { display: flex; align-items: baseline; gap: 6px; min-width: 0; margin: 0; color: var(--muted-strong); font-size: 12px; font-weight: 600; }
+.writing-dialog__result-meta { overflow: hidden; color: var(--muted); font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
+.writing-dialog__result-actions { display: flex; flex: none; gap: 2px; }
+.writing-dialog__result-actions button { min-height: 26px; padding: 0 8px; border: 0; border-radius: 13px; color: var(--blue); background: transparent; font-size: 12px; font-weight: 600; }
+.writing-dialog__result-actions button:hover:not(:disabled) { background: color-mix(in srgb, var(--blue) 12%, transparent); }
+.writing-dialog__result-actions button:disabled { opacity: .5; }
+.writing-dialog__result p { margin: 0; color: var(--ink); font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 
 .streaming-indicator__dots { display: inline-flex; align-items: center; gap: 3px; }
 .streaming-indicator__dots i { width: 4px; height: 4px; border-radius: 50%; background: var(--blue); animation: stream-pulse 1.2s ease-in-out infinite; }
