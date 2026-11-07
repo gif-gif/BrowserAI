@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { Fragment, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import './select.css';
 
@@ -22,6 +22,8 @@ interface SelectProps<T extends string> {
   disabled?: boolean;
   /** Adds a filter box at the top of the menu; the strings come from the caller so this component stays i18n-free. */
   search?: { placeholder: string; noMatch: string };
+  /** Extra content under the options, after a divider (for example a link to manage them); `close` dismisses the menu. */
+  footer?: (close: () => void) => ReactNode;
   onChange(value: T): void;
 }
 
@@ -48,7 +50,7 @@ function CheckIcon() {
  * (flipping up only when the viewport has no room) instead of the native popup that covers the field. It is portaled
  * to `document.body` with fixed positioning so scrollable dialogs and drawers cannot clip it.
  */
-export function Select<T extends string>({ value, options, label, ariaLabel, id, className, disabled = false, search, onChange }: SelectProps<T>) {
+export function Select<T extends string>({ value, options, label, ariaLabel, id, className, disabled = false, search, footer, onChange }: SelectProps<T>) {
   const generatedId = useId();
   const idPrefix = id ?? generatedId;
   const listId = `${idPrefix}-list`;
@@ -254,6 +256,12 @@ export function Select<T extends string>({ value, options, label, ariaLabel, id,
               </Fragment>
             ))}
           </div>
+          {footer ? (
+            <>
+              <div className="ui-select__separator" role="separator" />
+              <div className="ui-select__footer">{footer(() => setOpen(false))}</div>
+            </>
+          ) : null}
         </div>,
         document.body,
       ) : null}

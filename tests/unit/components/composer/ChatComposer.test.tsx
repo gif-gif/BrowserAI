@@ -803,6 +803,23 @@ describe('ChatComposer', () => {
     expect(screen.queryByRole('dialog', { name: 'AI 写作助手' })).not.toBeInTheDocument();
   });
 
+  it('shows 还没有技能 and 管理技能 in the style menu when there are no skills', async () => {
+    const user = userEvent.setup();
+    const onManageSkills = vi.fn();
+    render(<ChatComposer value="草稿" onChange={vi.fn()} onSend={vi.fn()} onManageSkills={onManageSkills} writingRewrite={vi.fn(async () => 'x')} />);
+    await user.click(screen.getByRole('button', { name: '添加内容' }));
+    await user.click(screen.getByRole('menuitem', { name: 'AI 写作助手' }));
+    const dialog = await screen.findByRole('dialog', { name: 'AI 写作助手' });
+    await user.click(within(dialog).getByRole('combobox', { name: '语气' }));
+
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['自然润色', '专业', '友好', '简洁']);
+    expect(screen.getByText('还没有技能')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '管理技能' }));
+    expect(onManageSkills).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('listbox', { name: '语气' })).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('combobox', { name: '语气' })).toHaveTextContent('自然润色');
+  });
+
   it('offers user skills under the tones, separated by a line, and polishes with the chosen skill', async () => {
     const user = userEvent.setup();
     const rewrite = vi.fn(async () => '邮件版');

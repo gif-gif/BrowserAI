@@ -39,6 +39,8 @@ interface WritingAssistantDialogProps {
   /** Puts the polished text into the chat input. */
   onUse?: (text: string) => void;
   onClose: () => void;
+  /** Opens skill management; shown at the bottom of the style menu. */
+  onManageSkills?: () => void;
   /** Polishes the text with AI; defaults to the background writing assistant. */
   rewrite?: (request: WritingRequest) => Promise<string>;
 }
@@ -75,7 +77,7 @@ function createDefaultRewriter(): WritingAssistantDialogProps['rewrite'] {
   };
 }
 
-export function WritingAssistantDialog({ initialText = '', model, models = [], skills = [], onUse, onClose, rewrite }: WritingAssistantDialogProps) {
+export function WritingAssistantDialog({ initialText = '', model, models = [], skills = [], onUse, onClose, onManageSkills, rewrite }: WritingAssistantDialogProps) {
   const { messages, locale } = useI18n();
   const titleId = useId();
   const textRef = useRef<HTMLTextAreaElement>(null);
@@ -205,7 +207,27 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], s
           />
         </div>
         <div className="writing-dialog__row">
-          <Select ariaLabel={messages.writingAssistantTone} value={style} options={styleOptions} disabled={generating} onChange={setStyle} />
+          <Select
+            ariaLabel={messages.writingAssistantTone}
+            value={style}
+            options={styleOptions}
+            disabled={generating}
+            onChange={setStyle}
+            footer={onManageSkills ? (close) => (
+              <>
+                {skills.length === 0 ? (
+                  <>
+                    <p className="ui-select__note">{messages.noSkills}</p>
+                    <div className="ui-select__separator" role="separator" />
+                  </>
+                ) : null}
+                <button type="button" className="ui-select__action" onClick={() => { close(); onManageSkills(); }}>
+                  <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11 4h5v5M16 4l-7 7" /><path d="M14 11.5V15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h3.5" /></svg>
+                  {messages.manageSkills}
+                </button>
+              </>
+            ) : undefined}
+          />
           <Select
             ariaLabel={messages.model}
             value={selectedModel}

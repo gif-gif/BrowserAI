@@ -1001,6 +1001,7 @@ export function ChatComposer({
           model={models.includes(model) ? model : undefined}
           models={models}
           skills={skills}
+          onManageSkills={onManageSkills}
           rewrite={writingRewrite}
           onUse={(text) => {
             const next = insertAtCaret(value, text, caretRef.current);
