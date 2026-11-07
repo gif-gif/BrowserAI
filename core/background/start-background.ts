@@ -23,6 +23,7 @@ import { resolveWritingAssistantEnabled } from '../../shared/writing-assistant/p
 import type { TabContextSummary } from '../../shared/types/tab-mention';
 import type { ExtractedPageContext } from '../../shared/types/context';
 import { supportsFloatingChat } from '../../shared/types/floating-chat';
+import { normalizeSkills } from '../../shared/skills/skill-store';
 
 export type { BackgroundBrowserApi } from './browser-api';
 
@@ -389,6 +390,12 @@ function createRuntimeHandlers(
         }))),
       };
     },
+    // The page writing assistant lists the user's skills under its tones. It
+    // runs in a content script, which cannot read extension storage directly.
+    GET_WRITING_ASSISTANT_SKILLS: async () => ({
+      skills: normalizeSkills(await services.storage.get<unknown>(STORAGE_KEYS.skills))
+        .map(({ id, name, prompt }) => ({ id, name, prompt })),
+    }),
     GET_WRITING_ASSISTANT_PREFERENCES: async () => {
       const [languagePreference, themePreference, writingAssistantEnabled, appearancePreference] = await Promise.all([
         services.storage.get<unknown>(STORAGE_KEYS.languagePreference),

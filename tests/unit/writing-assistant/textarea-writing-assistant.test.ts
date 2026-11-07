@@ -21,7 +21,7 @@ function shadowElements() {
     header: shadow.querySelector<HTMLElement>('.header')!,
     content: shadow.querySelector<HTMLElement>('.content')!,
     close: shadow.querySelector<HTMLButtonElement>('.close-button')!,
-    source: shadow.querySelector<HTMLElement>('.source-preview')!,
+    source: shadow.querySelector<HTMLTextAreaElement>('.source-input')!,
     model: shadow.querySelector<HTMLButtonElement>('#chrome-ai-writing-model')!,
     modelSearch: shadow.querySelector<HTMLInputElement>('#chrome-ai-writing-model-search')!,
     modelPopover: shadow.querySelector<HTMLElement>('.model-popover')!,
@@ -32,11 +32,13 @@ function shadowElements() {
     toneOptions: [...shadow.querySelectorAll<HTMLElement>('.tone-option')],
     context: shadow.querySelector<HTMLInputElement>('#chrome-ai-writing-context')!,
     generate: shadow.querySelector<HTMLButtonElement>('.generate-button')!,
-    resultWrap: shadow.querySelector<HTMLElement>('.result-wrap')!,
-    result: shadow.querySelector<HTMLDivElement>('#chrome-ai-writing-result')!,
-    insert: shadow.querySelector<HTMLButtonElement>('.insert-button')!,
-    retry: shadow.querySelector<HTMLButtonElement>('.retry-button')!,
-    copy: shadow.querySelector<HTMLButtonElement>('.copy-button')!,
+    results: shadow.querySelector<HTMLElement>('.results')!,
+    // Result cards are rebuilt on every change; these read the newest one.
+    get cards() { return [...shadow.querySelectorAll<HTMLElement>('.result-card')]; },
+    get result() { return shadow.querySelector<HTMLElement>('.result-body'); },
+    get insert() { return shadow.querySelector<HTMLButtonElement>('.result-insert')!; },
+    get copy() { return shadow.querySelector<HTMLButtonElement>('.result-copy')!; },
+    status: shadow.querySelector<HTMLElement>('.status')!,
   };
 }
 
@@ -70,11 +72,10 @@ describe('TextareaWritingAssistant', () => {
       expect(elements.shadow.querySelector('.title')?.textContent).toBe(en.writingAssistantTitle);
       expect(elements.close.getAttribute('aria-label')).toBe(en.writingAssistantClose);
       expect(elements.shadow.querySelector('.model-label')?.textContent).toBe(en.model);
-      expect(elements.context.placeholder).toBe(en.writingAssistantContextPlaceholder);
+      expect(elements.context.placeholder).toBe(en.writingAssistantContext);
       expect(elements.generate.getAttribute('aria-label')).toBe(en.writingAssistantGenerate);
-      expect(elements.insert.textContent).toBe(en.writingAssistantInsert);
-      expect(elements.retry.textContent).toBe(en.retry);
-      expect(elements.copy.getAttribute('aria-label')).toBe(en.copy);
+      expect(elements.source.placeholder).toBe(en.writingAssistantInputPlaceholder);
+      expect(elements.source.getAttribute('aria-label')).toBe(en.writingAssistantOriginal);
       expect(elements.toneOptions.map((option) => option.textContent)).toEqual(expect.arrayContaining([
         expect.stringContaining(en.writingTonePolish),
         expect.stringContaining(en.writingToneProfessional),
@@ -99,7 +100,7 @@ describe('TextareaWritingAssistant', () => {
       const elements = shadowElements();
       const style = elements.shadow.querySelector('style')?.textContent ?? '';
       expect(elements.shadow.querySelector('.description')?.textContent).toBe(en.writingAssistantDescription);
-      expect(style).toContain('grid-template-columns: 36px minmax(0, 1fr) 40px');
+      expect(style).toContain('grid-template-columns: 24px minmax(0, 1fr) 32px');
       expect(style).toContain('overflow-wrap: anywhere');
       expect(style).toContain('-webkit-line-clamp: 2');
       // Both dropdown menus are absolutely positioned and need a positioned wrapper to anchor under their trigger.
@@ -174,7 +175,7 @@ describe('TextareaWritingAssistant', () => {
       await Promise.resolve();
 
       expect(elements.shadow.querySelector('.title')?.textContent).toBe(en.writingAssistantTitle);
-      expect(elements.context.placeholder).toBe(en.writingAssistantContextPlaceholder);
+      expect(elements.context.placeholder).toBe(en.writingAssistantContext);
       expect(elements.generate.getAttribute('aria-label')).toBe(en.writingAssistantGenerate);
     } finally {
       assistant.stop();
@@ -407,7 +408,7 @@ describe('TextareaWritingAssistant', () => {
     const elements = shadowElements();
     elements.launcher.click();
 
-    expect(elements.source.textContent).toBe('');
+    expect(elements.source.value).toBe('');
     expect(elements.generate.disabled).toBe(true);
     elements.generate.click();
     expect(requestRewrite).not.toHaveBeenCalled();
@@ -415,7 +416,7 @@ describe('TextareaWritingAssistant', () => {
     textarea.setSelectionRange(2, 6);
     textarea.dispatchEvent(new Event('select', { bubbles: true, composed: true }));
 
-    expect(elements.source.textContent).toBe('自动作为');
+    expect(elements.source.value).toBe('自动作为');
     expect(elements.generate.disabled).toBe(false);
 
     assistant.stop();
@@ -443,13 +444,13 @@ describe('TextareaWritingAssistant', () => {
     textarea.value = '前文打开助手后再选择的文字后文';
     textarea.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
     textarea.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(elements.source.textContent).toBe('');
+    expect(elements.source.value).toBe('');
     expect(elements.generate.disabled).toBe(true);
 
     textarea.setSelectionRange(2, 13);
     textarea.dispatchEvent(new Event('select', { bubbles: true, composed: true }));
 
-    expect(elements.source.textContent).toBe('打开助手后再选择的文字');
+    expect(elements.source.value).toBe('打开助手后再选择的文字');
     expect(elements.generate.disabled).toBe(false);
 
     elements.generate.click();
@@ -481,25 +482,25 @@ describe('TextareaWritingAssistant', () => {
     const elements = shadowElements();
     elements.launcher.click();
 
-    expect(elements.source.textContent).toBe('需要润色的片段');
+    expect(elements.source.value).toBe('需要润色的片段');
     elements.generate.click();
     await vi.waitFor(() => expect(requestRewrite).toHaveBeenCalledWith(expect.objectContaining({
       requestId: 'writing-selection',
       text: '需要润色的片段',
     })));
-    await vi.waitFor(() => expect(elements.result.textContent).toBe('改写后的片段'));
+    await vi.waitFor(() => expect(elements.result?.textContent).toBe('改写后的片段'));
 
     elements.insert.click();
     expect(textarea.value).toBe('前文改写后的片段后文');
     expect(textarea.selectionStart).toBe(8);
     expect(textarea.selectionEnd).toBe(8);
-    expect(elements.source.textContent).toBe('需要润色的片段');
+    expect(elements.source.value).toBe('需要润色的片段');
 
     textarea.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
     textarea.dispatchEvent(new Event('change', { bubbles: true }));
     textarea.dispatchEvent(new Event('select', { bubbles: true, composed: true }));
     await new Promise((resolve) => window.setTimeout(resolve, 0));
-    expect(elements.source.textContent).toBe('需要润色的片段');
+    expect(elements.source.value).toBe('需要润色的片段');
 
     assistant.stop();
   });
@@ -523,13 +524,13 @@ describe('TextareaWritingAssistant', () => {
 
     const elements = shadowElements();
     elements.launcher.click();
-    expect(elements.source.textContent).toBe('选中内容');
+    expect(elements.source.value).toBe('选中内容');
 
     textarea.value = '前文更新内容后文';
     textarea.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
     textarea.dispatchEvent(new Event('change', { bubbles: true }));
 
-    expect(elements.source.textContent).toBe('选中内容');
+    expect(elements.source.value).toBe('选中内容');
     elements.generate.click();
     await vi.waitFor(() => expect(requestRewrite).toHaveBeenCalledWith(expect.objectContaining({
       requestId: 'writing-selection-change',
@@ -567,7 +568,7 @@ describe('TextareaWritingAssistant', () => {
     textarea.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
 
     await new Promise((resolve) => window.setTimeout(resolve, 0));
-    expect(elements.source.textContent).toBe('选中内容');
+    expect(elements.source.value).toBe('选中内容');
     elements.generate.click();
     await vi.waitFor(() => expect(requestRewrite).toHaveBeenCalledWith(expect.objectContaining({
       requestId: 'writing-controlled-change',
@@ -690,7 +691,7 @@ describe('TextareaWritingAssistant', () => {
     assistant.stop();
   });
 
-  it('keeps the header and composer visible while long results scroll inside the viewport', () => {
+  it('sizes the panel to its content and scrolls the content inside the viewport cap', () => {
     const assistant = new TextareaWritingAssistant({
       document,
       window,
@@ -701,10 +702,13 @@ describe('TextareaWritingAssistant', () => {
 
     const { shadow } = shadowElements();
     const styles = shadow.querySelector('style')?.textContent ?? '';
-    expect(styles).toContain('height: min(680px, calc(100dvh - 24px));');
-    expect(styles).toMatch(/\.panel-layout\s*\{[^}]*height:\s*100%[^}]*min-height:\s*0[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\) auto/s);
-    expect(styles).toMatch(/\.content\s*\{[^}]*height:\s*100%[^}]*min-height:\s*0[^}]*overflow-y:\s*scroll/s);
-    expect(styles).toMatch(/\.composer-shell\s*\{[^}]*flex:\s*0 0 auto/s);
+    expect(styles).toContain('max-height: min(680px, calc(100dvh - 24px));');
+    expect(styles).toMatch(/\.panel-layout\s*\{[^}]*min-height:\s*0[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\)/s);
+    expect(styles).toMatch(/\.content\s*\{[^}]*min-height:\s*0[^}]*overflow-y:\s*auto/s);
+    // Header, source, pickers and the context box come first; results follow the context box.
+    const content = shadow.querySelector('.content')!;
+    expect([...content.children].map((child) => child.className)).toEqual(['source-input', 'picker-row', 'composer', 'feedback', 'results']);
+    expect(shadow.querySelector('.privacy')).toBeNull();
 
     assistant.stop();
   });
@@ -805,7 +809,7 @@ describe('TextareaWritingAssistant', () => {
 
     otherTextarea.focus();
     expect(panel.style.display).toBe('block');
-    expect(source.textContent).toBe('保持当前写作内容');
+    expect(source.value).toBe('保持当前写作内容');
 
     context.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true }));
     expect(panel.style.display).toBe('block');
@@ -1029,7 +1033,7 @@ describe('TextareaWritingAssistant', () => {
     const elements = shadowElements();
     elements.launcher.click();
     elements.generate.click();
-    await vi.waitFor(() => expect(elements.result.textContent).toBe('润色后的结果'));
+    await vi.waitFor(() => expect(elements.result?.textContent).toBe('润色后的结果'));
 
     vi.useFakeTimers();
     elements.copy.click();
@@ -1054,62 +1058,19 @@ describe('TextareaWritingAssistant', () => {
     else Reflect.deleteProperty(window.navigator, 'clipboard');
   });
 
-  it('keeps every rewrite from the current assistant session for comparison', async () => {
-    const requestRewrite = vi.fn()
-      .mockResolvedValueOnce({ text: 'First polished result' })
-      .mockResolvedValueOnce({ text: 'Second polished result' });
-    const assistant = new TextareaWritingAssistant({
-      document,
-      window,
-      messages: en,
-      requestRewrite,
-    });
-    assistant.start();
-    const textarea = document.createElement('textarea');
-    textarea.value = 'alpha beta';
-    textarea.getBoundingClientRect = rect;
-    document.body.append(textarea);
-    textarea.focus();
-    textarea.setSelectionRange(0, 5);
-
-    const elements = shadowElements();
-    elements.launcher.click();
-    elements.generate.click();
-    await vi.waitFor(() => expect(elements.result.textContent).toBe('First polished result'));
-
-    textarea.setSelectionRange(6, 10);
-    textarea.dispatchEvent(new Event('select', { bubbles: true, composed: true }));
-    elements.generate.click();
-    await vi.waitFor(() => expect(elements.result.textContent).toBe('Second polished result'));
-
-    const historySection = elements.shadow.querySelector<HTMLElement>('.history-section')!;
-    const cards = [...elements.shadow.querySelectorAll<HTMLElement>('.history-card')];
-    expect(historySection.style.display).toBe('block');
-    expect(elements.shadow.querySelector('.history-heading')?.textContent).toBe('Rewrite history');
-    expect(cards).toHaveLength(1);
-    expect(cards[0]?.querySelector('.history-source')?.textContent).toBe('alpha');
-    expect(cards[0]?.querySelector('.history-result')?.textContent).toBe('First polished result');
-    expect(cards[0]?.querySelector('.history-tone')?.textContent).toBe('Polish');
-    expect(elements.source.textContent).toBe('beta');
-
-    assistant.stop();
-  });
-
-  it('allows copying and inserting an earlier rewrite without removing the comparison history', async () => {
+  it('keeps every rewrite as a list, newest first, with insert, copy and delete on each', async () => {
     const requestRewrite = vi.fn()
       .mockResolvedValueOnce({ text: 'FIRST' })
       .mockResolvedValueOnce({ text: 'SECOND' });
     const writeText = vi.fn(async () => undefined);
     const originalClipboard = Object.getOwnPropertyDescriptor(window.navigator, 'clipboard');
-    Object.defineProperty(window.navigator, 'clipboard', {
-      configurable: true,
-      value: { writeText },
-    });
+    Object.defineProperty(window.navigator, 'clipboard', { configurable: true, value: { writeText } });
     const assistant = new TextareaWritingAssistant({
       document,
       window,
       messages: en,
       requestRewrite,
+      loadModels: vi.fn(async () => ({ model: 'm1', models: ['m1'] })),
     });
     assistant.start();
     const textarea = document.createElement('textarea');
@@ -1119,40 +1080,45 @@ describe('TextareaWritingAssistant', () => {
     textarea.focus();
     textarea.setSelectionRange(0, 5);
 
-    const elements = shadowElements();
-    elements.launcher.click();
-    elements.generate.click();
-    await vi.waitFor(() => expect(elements.result.textContent).toBe('FIRST'));
-    textarea.setSelectionRange(6, 10);
-    textarea.dispatchEvent(new Event('select', { bubbles: true, composed: true }));
-    elements.generate.click();
-    await vi.waitFor(() => expect(elements.result.textContent).toBe('SECOND'));
+    try {
+      const elements = shadowElements();
+      elements.launcher.click();
+      elements.generate.click();
+      await vi.waitFor(() => expect(elements.result?.textContent).toBe('FIRST'));
+      textarea.setSelectionRange(6, 10);
+      textarea.dispatchEvent(new Event('select', { bubbles: true, composed: true }));
+      expect(elements.source.value).toBe('beta');
+      elements.generate.click();
+      await vi.waitFor(() => expect(elements.cards).toHaveLength(2));
 
-    const historyCard = elements.shadow.querySelector<HTMLElement>('.history-card')!;
-    historyCard.querySelector<HTMLButtonElement>('.history-copy-button')!.click();
-    await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith('FIRST'));
-    historyCard.querySelector<HTMLButtonElement>('.history-insert-button')!.click();
+      const [newest, older] = elements.cards;
+      expect(newest!.querySelector('.result-body')?.textContent).toBe('SECOND');
+      expect(older!.querySelector('.result-body')?.textContent).toBe('FIRST');
+      expect(older!.querySelector('.result-tone')?.textContent).toBe('Polish');
+      expect([...older!.querySelectorAll('.result-actions button')].map((button) => button.getAttribute('aria-label') ?? button.textContent))
+        .toEqual(['Insert', 'Copy', en.writingAssistantDeleteResult]);
+      expect(elements.shadow.querySelector('.result-label, .history-section, .retry-button')).toBeNull();
 
-    expect(textarea.value).toBe('FIRST beta');
-    expect(elements.result.textContent).toBe('SECOND');
-    expect(elements.shadow.querySelectorAll('.history-card')).toHaveLength(1);
-    expect(elements.shadow.querySelector('.history-result')?.textContent).toBe('FIRST');
+      older!.querySelector<HTMLButtonElement>('.result-copy')!.click();
+      await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith('FIRST'));
+      older!.querySelector<HTMLButtonElement>('.result-insert')!.click();
+      // Replaces only the range the older result came from.
+      expect(textarea.value).toBe('FIRST beta');
+      expect(elements.cards).toHaveLength(2);
 
-    assistant.stop();
-    if (originalClipboard) Object.defineProperty(window.navigator, 'clipboard', originalClipboard);
-    else Reflect.deleteProperty(window.navigator, 'clipboard');
+      elements.cards[0]!.querySelector<HTMLButtonElement>('.result-delete')!.click();
+      expect(elements.cards).toHaveLength(1);
+      expect(elements.result?.textContent).toBe('FIRST');
+    } finally {
+      assistant.stop();
+      if (originalClipboard) Object.defineProperty(window.navigator, 'clipboard', originalClipboard);
+      else Reflect.deleteProperty(window.navigator, 'clipboard');
+    }
   });
 
-  it('clears the current rewrite history only after the assistant is closed', async () => {
-    const requestRewrite = vi.fn()
-      .mockResolvedValueOnce({ text: 'First result' })
-      .mockResolvedValueOnce({ text: 'Second result' });
-    const assistant = new TextareaWritingAssistant({
-      document,
-      window,
-      messages: en,
-      requestRewrite,
-    });
+  it('clears the results only after the assistant is closed', async () => {
+    const requestRewrite = vi.fn(async () => ({ text: 'First result' }));
+    const assistant = new TextareaWritingAssistant({ document, window, messages: en, requestRewrite });
     assistant.start();
     const textarea = document.createElement('textarea');
     textarea.value = 'alpha beta';
@@ -1164,21 +1130,121 @@ describe('TextareaWritingAssistant', () => {
     const elements = shadowElements();
     elements.launcher.click();
     elements.generate.click();
-    await vi.waitFor(() => expect(elements.result.textContent).toBe('First result'));
-    textarea.setSelectionRange(6, 10);
-    textarea.dispatchEvent(new Event('select', { bubbles: true, composed: true }));
-    elements.generate.click();
-    await vi.waitFor(() => expect(elements.shadow.querySelectorAll('.history-card')).toHaveLength(1));
+    await vi.waitFor(() => expect(elements.cards).toHaveLength(1));
+    expect(elements.results.dataset.hasResults).toBe('true');
 
     elements.close.click();
     elements.launcher.click();
-
-    expect(elements.resultWrap.style.display).toBe('none');
-    expect(elements.result.textContent).toBe('');
-    expect(elements.shadow.querySelectorAll('.history-card')).toHaveLength(0);
-    expect(elements.shadow.querySelector<HTMLElement>('.history-section')?.style.display).toBe('none');
+    expect(elements.cards).toHaveLength(0);
+    expect(elements.results.dataset.hasResults).toBe('false');
 
     assistant.stop();
+  });
+
+  it('inserts at the caret instead of replacing the textarea when the source was typed', async () => {
+    const requestRewrite = vi.fn(async () => ({ text: '[新]' }));
+    const assistant = new TextareaWritingAssistant({ document, window, messages: zhCN, requestRewrite });
+    assistant.start();
+    const textarea = document.createElement('textarea');
+    textarea.value = '前面后面';
+    textarea.getBoundingClientRect = rect;
+    document.body.append(textarea);
+    textarea.focus();
+    textarea.setSelectionRange(2, 2);
+
+    try {
+      const elements = shadowElements();
+      elements.launcher.click();
+      expect(elements.generate.disabled).toBe(true);
+      elements.source.value = '手动输入的原文';
+      elements.source.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(elements.generate.disabled).toBe(false);
+      elements.generate.click();
+      await vi.waitFor(() => expect(requestRewrite).toHaveBeenCalledWith(expect.objectContaining({ text: '手动输入的原文' })));
+      await vi.waitFor(() => expect(elements.cards).toHaveLength(1));
+
+      elements.insert.click();
+      expect(textarea.value).toBe('前面[新]后面');
+    } finally {
+      assistant.stop();
+    }
+  });
+
+  it('renders results as Markdown and folds long ones behind a toggle', async () => {
+    const requestRewrite = vi.fn(async () => ({ text: '**摘要：**正文\n\n* 第一点\n* 第二点\n\n<b>raw</b>' }));
+    const heights = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('result-body') ? 600 : 0;
+    });
+    const assistant = new TextareaWritingAssistant({ document, window, messages: zhCN, requestRewrite });
+    assistant.start();
+    const textarea = document.createElement('textarea');
+    textarea.value = '在';
+    textarea.getBoundingClientRect = rect;
+    document.body.append(textarea);
+    textarea.focus();
+    textarea.setSelectionRange(0, 1);
+
+    try {
+      const elements = shadowElements();
+      elements.launcher.click();
+      elements.generate.click();
+      await vi.waitFor(() => expect(elements.cards).toHaveLength(1));
+
+      const body = elements.result!;
+      expect(body.querySelector('strong')?.textContent).toBe('摘要');
+      expect([...body.querySelectorAll('li')].map((item) => item.textContent)).toEqual(['第一点', '第二点']);
+      expect(body.querySelector('b')).toBeNull();
+      expect(body.textContent).not.toContain('**');
+      expect(body.dataset.collapsed).toBe('true');
+
+      const toggle = elements.shadow.querySelector<HTMLButtonElement>('.result-toggle')!;
+      expect(toggle.hidden).toBe(false);
+      expect(toggle.textContent).toBe('展开全部');
+      toggle.click();
+      expect(elements.result!.dataset.collapsed).toBeUndefined();
+      expect(elements.shadow.querySelector('.result-toggle')?.textContent).toBe('收起');
+    } finally {
+      heights.mockRestore();
+      assistant.stop();
+    }
+  });
+
+  it('lists the user skills under the tones and polishes with the chosen skill', async () => {
+    const requestRewrite = vi.fn(async () => ({ text: '邮件版' }));
+    const assistant = new TextareaWritingAssistant({
+      document,
+      window,
+      messages: zhCN,
+      requestRewrite,
+      loadSkills: vi.fn(async () => [{ id: 's1', name: '写成邮件', prompt: '改写成一封简短的邮件' }]),
+    });
+    assistant.start();
+    const textarea = document.createElement('textarea');
+    textarea.value = '会议改到周三';
+    textarea.getBoundingClientRect = rect;
+    document.body.append(textarea);
+    textarea.focus();
+    textarea.setSelectionRange(0, textarea.value.length);
+
+    try {
+      const elements = shadowElements();
+      elements.launcher.click();
+      await vi.waitFor(() => expect(elements.shadow.querySelectorAll('.tone-option')).toHaveLength(5));
+      const popover = elements.tonePopover;
+      expect([...popover.children].map((child) => child.getAttribute('role'))).toEqual(['option', 'option', 'option', 'option', 'separator', 'option']);
+
+      elements.toneTrigger.click();
+      popover.querySelector<HTMLElement>('[data-tone="skill:s1"]')!.click();
+      expect(elements.toneTrigger.textContent).toContain('写成邮件');
+      elements.generate.click();
+      await vi.waitFor(() => expect(requestRewrite).toHaveBeenCalledWith(expect.objectContaining({
+        tone: 'polish',
+        skill: { name: '写成邮件', prompt: '改写成一封简短的邮件' },
+      })));
+      await vi.waitFor(() => expect(elements.shadow.querySelector('.result-tone')?.textContent).toBe('写成邮件'));
+    } finally {
+      assistant.stop();
+    }
   });
 
   it('polishes and inserts the result into the original textarea', async () => {
@@ -1205,13 +1271,13 @@ describe('TextareaWritingAssistant', () => {
       x: 0, y: 64, left: 0, top: 64, right: 460, bottom: 500,
       width: 460, height: 436, toJSON: () => ({}),
     }) as DOMRect;
-    elements.resultWrap.getBoundingClientRect = () => ({
+    elements.results.getBoundingClientRect = () => ({
       x: 0, y: 280, left: 0, top: 280, right: 460, bottom: 460,
       width: 460, height: 180, toJSON: () => ({}),
     }) as DOMRect;
     elements.launcher.click();
     expect(elements.panel.style.display).toBe('block');
-    expect(elements.source.textContent).toBe('这个说法不太好。');
+    expect(elements.source.value).toBe('这个说法不太好。');
     expect(elements.toneOptions).toHaveLength(4);
     expect(elements.toneOptions[0]?.getAttribute('aria-selected')).toBe('true');
     elements.tone.value = 'professional';
@@ -1224,13 +1290,12 @@ describe('TextareaWritingAssistant', () => {
       instruction: '用于给客户发送的邮件',
       tone: 'professional',
     }));
-    await vi.waitFor(() => expect(elements.result.textContent).toBe('这是润色后的专业表达。'));
+    await vi.waitFor(() => expect(elements.result?.textContent).toBe('这是润色后的专业表达。'));
     await vi.waitFor(() => expect(elements.content.scrollTop).toBe(204));
-    expect(elements.resultWrap.style.display).toBe('grid');
-    expect(elements.result.tagName).toBe('DIV');
-    expect(elements.result.getAttribute('contenteditable')).toBeNull();
+    expect(elements.results.dataset.hasResults).toBe('true');
+    expect(elements.result?.tagName).toBe('DIV');
+    expect(elements.result?.getAttribute('contenteditable')).toBeNull();
     expect(elements.shadow.activeElement).not.toBe(elements.result);
-    expect(elements.retry.textContent).toBe('重试');
     expect(elements.copy.getAttribute('aria-label')).toBe('复制');
 
     elements.insert.click();

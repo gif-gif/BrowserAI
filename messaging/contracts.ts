@@ -104,6 +104,7 @@ export const runtimeCommandSchema = z.discriminatedUnion('type', [
   }).strict(),
   z.object({ ...envelope, type: z.literal('GET_PROVIDER_SETTINGS') }).strict(),
   z.object({ ...envelope, type: z.literal('GET_WRITING_ASSISTANT_PREFERENCES') }).strict(),
+  z.object({ ...envelope, type: z.literal('GET_WRITING_ASSISTANT_SKILLS') }).strict(),
   z.object({ ...envelope, type: z.literal('GET_CONTEXT_LIMIT') }).strict(),
   z.object({ ...envelope, type: z.literal('GET_ATTACHMENT_LIMIT') }).strict(),
   z.object({

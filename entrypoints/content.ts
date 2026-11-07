@@ -4,7 +4,7 @@ import { analyzePageTechStack } from '../core/page-context/analyze-tech-stack';
 import { DomPageController } from '../core/page-actions/dom-page-controller';
 import { SelectionSync } from '../core/selection/selection-sync';
 import { selectScreenshotRegion } from '../core/screenshot/region-selector';
-import { TextareaWritingAssistant } from '../core/writing-assistant/textarea-writing-assistant';
+import { TextareaWritingAssistant, type WritingAssistantSkill } from '../core/writing-assistant/textarea-writing-assistant';
 import { observeSpaNavigation } from '../core/navigation/spa-navigation-observer';
 import { InPageFloatingChat } from '../core/floating-chat/in-page-floating-chat';
 import { FLOATING_CHAT_PAGE, type FloatingChatLayout } from '../shared/types/floating-chat';
@@ -266,6 +266,11 @@ export default defineContentScript({
           return { model: config.model, models: [config.model] };
         }
       },
+      loadSkills: async () => (await runtime.send<{ skills?: WritingAssistantSkill[] }>({
+        version: 1,
+        requestId: globalThis.crypto?.randomUUID?.() ?? `writing-skills-${Date.now()}`,
+        type: 'GET_WRITING_ASSISTANT_SKILLS',
+      })).skills ?? [],
       requestRewrite: async (request) => {
         try {
           // Read the shared preference immediately before every request so the

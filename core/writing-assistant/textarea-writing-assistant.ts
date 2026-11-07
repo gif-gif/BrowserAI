@@ -2,6 +2,8 @@ import type { AppMessages } from '../../shared/i18n/messages';
 import type { ResolvedAppearance } from '../../shared/theme/appearance';
 import type { ThemeTokens } from '../../shared/theme/theme';
 import { WRITING_TONES, type WritingAssistResult, type WritingTone } from '../../shared/types/writing-assistant';
+import type { SkillInvocation } from '../../shared/types/skill';
+import { renderMarkdown } from './render-markdown';
 
 type WritingAssistantMessages = Pick<AppMessages,
   | 'writingAssistantOpen'
@@ -20,15 +22,17 @@ type WritingAssistantMessages = Pick<AppMessages,
   | 'writingAssistantResult'
   | 'writingAssistantHistory'
   | 'writingAssistantOriginal'
+  | 'writingAssistantInputPlaceholder'
   | 'writingAssistantInsert'
   | 'writingAssistantInserted'
   | 'writingAssistantEmpty'
   | 'writingAssistantTargetMissing'
-  | 'writingAssistantPrivacy'
+  | 'writingAssistantDeleteResult'
+  | 'writingAssistantExpandResult'
+  | 'writingAssistantCollapseResult'
   | 'model'
   | 'modelSearchPlaceholder'
   | 'modelSearchNoMatch'
-  | 'retry'
   | 'copy'
   | 'copied'
 >;
@@ -38,9 +42,31 @@ interface WritingAssistantHistoryItem {
   sourceText: string;
   resultText: string;
   tone: WritingTone;
+  skillName?: string;
   model?: string;
+  /** The selected range the source came from, replaced on insert. */
   sourceRange?: { start: number; end: number; selected: boolean };
+  /** Without a selected source, the caret the page textarea had when the assistant opened. */
+  insertAt?: { start: number; end: number };
 }
+
+/** A user “/” skill offered under the tones. */
+export interface WritingAssistantSkill {
+  id: string;
+  name: string;
+  prompt: string;
+}
+
+interface StyleOption {
+  key: string;
+  label: string;
+  tone?: WritingTone;
+  skill?: WritingAssistantSkill;
+}
+
+const SKILL_STYLE_PREFIX = 'skill:';
+/** Results shown in full before the list starts scrolling. */
+const VISIBLE_RESULTS = 3;
 
 interface RewriteRequest {
   requestId: string;
@@ -48,6 +74,7 @@ interface RewriteRequest {
   instruction?: string;
   model?: string;
   tone: WritingTone;
+  skill?: SkillInvocation;
 }
 
 interface TextareaWritingAssistantOptions {
@@ -56,6 +83,8 @@ interface TextareaWritingAssistantOptions {
   messages: WritingAssistantMessages;
   loadMessages?(): Promise<WritingAssistantMessages>;
   loadModels?(): Promise<{ model: string; models: string[] }>;
+  /** The user's saved “/” skills, read through the background each time the assistant opens. */
+  loadSkills?(): Promise<WritingAssistantSkill[]>;
   requestRewrite(request: RewriteRequest): Promise<WritingAssistResult>;
   createRequestId?: () => string;
 }
@@ -117,8 +146,6 @@ const STYLE = `
     z-index: 2147483647;
     display: none;
     width: min(460px, calc(100vw - 24px));
-    height: min(680px, calc(100vh - 24px));
-    height: min(680px, calc(100dvh - 24px));
     max-height: min(680px, calc(100vh - 24px));
     max-height: min(680px, calc(100dvh - 24px));
     overflow: hidden;
@@ -132,160 +159,100 @@ const STYLE = `
     animation: ai-writing-enter 180ms cubic-bezier(.2,.8,.2,1);
   }
   @keyframes ai-writing-enter { from { opacity: 0; transform: translateY(6px) scale(.985); } to { opacity: 1; transform: none; } }
+  /* Same layout as the side panel's writing dialog: header, then one column
+     of source, pickers, context box and results. The panel is only as tall as
+     its content; positionPanel() caps it to the viewport. */
   .panel-layout {
     display: grid;
     width: 100%;
     height: 100%;
     min-height: 0;
+    max-height: inherit;
     overflow: hidden;
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr);
   }
   .header {
     min-width: 0;
-    width: 100%;
-    max-width: 100%;
-    min-height: 64px;
     display: grid;
-    grid-template-columns: 36px minmax(0, 1fr) 40px;
+    grid-template-columns: 24px minmax(0, 1fr) 32px;
+    grid-template-areas: "logo title close" "description description description";
     align-items: center;
-    gap: 12px;
-    overflow: hidden;
-    padding: 12px 14px 12px 16px;
-    border-bottom: 1px solid var(--ai-border);
+    column-gap: 8px;
+    row-gap: 6px;
+    padding: 18px 16px 10px 20px;
     cursor: grab;
     touch-action: none;
     user-select: none;
   }
   .header[data-dragging="true"] { cursor: grabbing; }
-  .brand-mark {
-    flex: 0 0 auto;
-    width: 36px;
-    height: 36px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--ai-text);
-  }
-  .brand-mark svg { width: 28px; height: 28px; overflow: visible; }
-  .title-wrap { min-width: 0; width: 100%; max-width: 100%; overflow: hidden; }
-  .title { max-width: 100%; margin: 0; overflow: hidden; color: var(--ai-text); font-size: 15px; line-height: 20px; font-weight: 700; letter-spacing: -.01em; text-overflow: ellipsis; white-space: nowrap; }
+  .brand-mark { grid-area: logo; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; color: var(--ai-text); }
+  .brand-mark svg { width: 22px; height: 22px; overflow: visible; }
+  .title { grid-area: title; min-width: 0; margin: 0; overflow: hidden; color: var(--ai-text); font-size: 16px; line-height: 22px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
   .description {
+    grid-area: description;
     display: -webkit-box;
-    max-width: 100%;
-    margin: 1px 0 0;
+    margin: 0;
     overflow: hidden;
     overflow-wrap: anywhere;
     color: var(--ai-text-secondary);
-    font-size: 11px;
-    line-height: 15px;
-    white-space: normal;
+    font-size: 12px;
+    line-height: 17px;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
   }
+  .close-button { grid-area: close; justify-self: end; }
   .icon-button {
     flex: 0 0 auto;
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    padding: 0;
     appearance: none;
     border: 0;
-    border-radius: 12px;
+    border-radius: 50%;
     color: var(--ai-text-secondary);
     background: transparent;
     cursor: pointer;
     transition: color 160ms ease, background 160ms ease, transform 120ms ease;
   }
-  .icon-button:hover { color: var(--ai-text); background: var(--ai-surface-hover); }
-  .icon-button:active { transform: scale(.96); }
+  .icon-button:hover:not(:disabled) { color: var(--ai-text); background: var(--ai-surface-hover); }
+  .icon-button:active:not(:disabled) { transform: scale(.96); }
   .icon-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .content {
     position: relative;
-    width: 100%;
-    height: 100%;
+    display: grid;
+    align-content: start;
+    gap: 12px;
     min-height: 0;
-    max-height: 100%;
     overflow-x: hidden;
-    overflow-y: scroll;
+    overflow-y: auto;
     overscroll-behavior: contain;
-    scroll-behavior: auto;
+    padding: 6px 20px 20px;
     touch-action: pan-y;
-    -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
-    scrollbar-gutter: stable;
   }
   .content::-webkit-scrollbar { width: 8px; }
   .content::-webkit-scrollbar-track { background: transparent; }
   .content::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: color-mix(in srgb, var(--ai-text-secondary) 42%, transparent); background-clip: padding-box; }
-  .content::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--ai-text-secondary) 62%, transparent); background-clip: padding-box; }
-  .source-preview {
-    margin: 0;
-    max-height: 96px;
-    overflow: auto;
-    padding: 20px 22px 16px;
-    color: var(--ai-text-secondary);
-    font-size: 15px;
-    line-height: 1.55;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-  }
-  .result-wrap {
-    display: none;
-    gap: 12px;
-    padding: 0 22px 18px;
-    border-bottom: 1px solid var(--ai-border);
-  }
-  .history-section { display: none; padding: 16px 14px 18px; border-bottom: 1px solid var(--ai-border); }
-  .history-heading { display: block; padding: 0 8px 10px; color: var(--ai-text-secondary); font-size: 11px; line-height: 16px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
-  .history-list { display: grid; gap: 10px; }
-  .history-card { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--ai-border); border-radius: 14px; background: var(--ai-surface-subtle); }
-  .history-meta { display: flex; align-items: center; gap: 7px; min-width: 0; color: var(--ai-text-secondary); font-size: 11px; line-height: 16px; }
-  .history-tone { color: var(--ai-accent); font-weight: 700; }
-  .history-model { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .history-block { display: grid; gap: 4px; }
-  .history-block-label { color: var(--ai-text-secondary); font-size: 10px; line-height: 14px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
-  .history-source, .history-result { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
-  .history-source { max-height: 76px; overflow: auto; color: var(--ai-text-secondary); font-size: 13px; line-height: 1.5; }
-  .history-result { color: var(--ai-text); font-size: 15px; line-height: 1.58; }
-  .history-actions { display: flex; align-items: center; gap: 4px; padding-top: 2px; }
-  .history-insert-button { min-height: 28px; padding: 3px 8px; appearance: none; border: 1px solid var(--ai-accent); border-radius: 9px; color: #fff; background: var(--ai-accent); font-size: 11px; line-height: 16px; font-weight: 650; cursor: pointer; }
-  .history-insert-button:hover { border-color: var(--ai-accent-hover); background: var(--ai-accent-hover); }
-  .history-copy-button { margin-left: auto; width: 28px; height: 28px; border-radius: 8px; }
-  .history-copy-button[data-copied="true"] { color: var(--ai-accent); background: var(--ai-accent-soft); }
-  .result-label { color: var(--ai-text-secondary); font-size: 11px; line-height: 16px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
-  .result-source-block { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--ai-border); border-radius: 12px; background: var(--ai-surface-subtle); }
-  .result-source { margin: 0; max-height: 76px; overflow: auto; color: var(--ai-text-secondary); font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
-  .result {
+  .source-input {
     width: 100%;
-    margin: 0;
+    min-height: 88px;
+    max-height: 180px;
+    padding: 10px 12px;
+    resize: vertical;
+    border: 1px solid var(--ai-border);
+    border-radius: 14px;
     color: var(--ai-text);
-    font-size: 17px;
-    line-height: 1.62;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    user-select: text;
+    background: var(--ai-surface-subtle);
+    font-size: 14px;
+    line-height: 1.5;
+    outline: none;
   }
-  .composer-input::placeholder { color: #98a2b3; }
-  .result-actions { display: flex; align-items: center; gap: 4px; }
-  .insert-button, .retry-button {
-    min-height: 28px;
-    padding: 3px 8px;
-    appearance: none;
-    border-radius: 8px;
-    font-size: 11px;
-    line-height: 16px;
-    font-weight: 650;
-    cursor: pointer;
-    transition: transform 120ms ease, background 160ms ease, border-color 160ms ease, color 160ms ease;
-  }
-  .insert-button { border: 1px solid var(--ai-accent); color: #fff; background: var(--ai-accent); }
-  .insert-button:hover:not(:disabled) { border-color: var(--ai-accent-hover); background: var(--ai-accent-hover); }
-  .retry-button { border: 1px solid transparent; color: var(--ai-text-secondary); background: transparent; }
-  .retry-button:hover:not(:disabled) { color: var(--ai-text); background: var(--ai-surface-hover); }
-  .copy-button { width: 28px; height: 28px; margin-left: auto; border-radius: 8px; }
-  .copy-button[data-copied="true"] { color: var(--ai-accent); background: var(--ai-accent-soft); }
-  .picker-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 10px 22px 12px; }
+  .source-input::placeholder, .composer-input::placeholder { color: #98a2b3; }
+  .source-input:focus { border-color: color-mix(in srgb, var(--ai-accent) 55%, var(--ai-border)); }
+  .picker-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .model-section, .tone-section { min-width: 0; }
   .model-picker-wrap, .tone-picker-wrap { position: relative; }
   .model-trigger, .tone-trigger {
@@ -370,42 +337,38 @@ const STYLE = `
   .tone-text { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tone-check { flex: 0 0 auto; display: inline-flex; color: var(--ai-accent); opacity: 0; }
   .tone-option[aria-selected="true"] .tone-check { opacity: 1; }
-  .feedback { padding: 0 22px; }
-  .status { display: none; margin: 0 0 12px; padding: 9px 11px; border-radius: 10px; color: var(--ai-text-secondary); background: var(--ai-surface-subtle); font-size: 12px; line-height: 18px; }
-  .status[data-kind="error"] { display: block; color: #b42318; background: #fef3f2; }
-  .status[data-kind="success"] { display: block; color: #067647; background: #ecfdf3; }
-  .privacy { display: flex; gap: 7px; align-items: flex-start; padding: 0 22px 16px; color: var(--ai-text-secondary); font-size: 11px; line-height: 16px; }
-  .privacy svg { flex: 0 0 auto; width: 13px; height: 13px; margin-top: 1px; fill: none; stroke: currentColor; stroke-width: 1.8; }
-  .composer-shell { flex: 0 0 auto; padding: 12px 14px 14px; border-top: 1px solid var(--ai-border); background: var(--ai-surface-subtle); }
+  .tone-separator { height: 1px; margin: 4px 6px; background: var(--ai-border); }
+  /* Context input and the polish arrow share one rounded box, like the chat composer. */
   .composer {
     display: flex;
     align-items: center;
     gap: 8px;
-    min-height: 54px;
-    padding: 7px 8px 7px 14px;
+    padding: 6px 6px 6px 14px;
     border: 1px solid var(--ai-border);
-    border-radius: 15px;
+    border-radius: 16px;
     background: var(--ai-surface);
-    box-shadow: 0 6px 20px rgba(15,23,42,.10), 0 1px 3px rgba(15,23,42,.08);
+    box-shadow: 0 2px 8px rgba(15,23,42,.06);
   }
-  .composer-input { min-width: 0; flex: 1; height: 38px; padding: 7px 0; border: 0; color: var(--ai-text); background: transparent; outline: none; }
+  .composer:focus-within { border-color: color-mix(in srgb, var(--ai-accent) 55%, var(--ai-border)); }
+  .composer-input { min-width: 0; flex: 1; height: 36px; padding: 0; border: 0; color: var(--ai-text); background: transparent; outline: none; font-size: 14px; }
   .generate-button {
     flex: 0 0 auto;
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    padding: 0;
     appearance: none;
-    border: 1px solid var(--ai-accent);
+    border: 0;
     border-radius: 12px;
     color: #fff;
     background: var(--ai-accent);
     cursor: pointer;
-    transition: transform 120ms ease, background 160ms ease, border-color 160ms ease;
+    transition: transform 120ms ease, background 160ms ease;
   }
-  .generate-button:hover:not(:disabled) { border-color: var(--ai-accent-hover); background: var(--ai-accent-hover); }
-  .generate-button:active:not(:disabled), .insert-button:active:not(:disabled), .retry-button:active:not(:disabled) { transform: scale(.97); }
+  .generate-button:hover:not(:disabled) { background: var(--ai-accent-hover); }
+  .generate-button:active:not(:disabled) { transform: scale(.97); }
   .generate-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   button:disabled { opacity: .48; cursor: not-allowed; }
   .spinner {
@@ -418,24 +381,51 @@ const STYLE = `
     animation: ai-writing-spin .75s linear infinite;
   }
   @keyframes ai-writing-spin { to { transform: rotate(360deg); } }
-  .launcher:focus-visible, .icon-button:focus-visible, .insert-button:focus-visible, .retry-button:focus-visible,
+  .status { display: none; margin: 0; padding: 9px 11px; border-radius: 10px; font-size: 12px; line-height: 18px; }
+  .status[data-kind="error"] { display: block; color: #b42318; background: #fef3f2; }
+  .status[data-kind="success"] { display: block; color: #067647; background: #ecfdf3; }
+  /* Every polish stays in this list, newest first. Three show in full; the
+     list then scrolls (max-height is measured in renderResults). */
+  .results { --results-max: min(420px, 55vh); display: none; gap: 8px; max-height: var(--results-max); overflow-y: auto; overscroll-behavior: contain; }
+  .results[data-has-results="true"] { display: grid; }
+  .result-card { display: grid; gap: 6px; padding: 10px 12px 12px; border-radius: 12px; background: var(--ai-accent-soft); }
+  .result-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+  .result-meta { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1 1 auto; font-size: 12px; line-height: 18px; }
+  .result-tone { flex: none; padding: 1px 8px; border-radius: 999px; color: var(--ai-accent); background: color-mix(in srgb, var(--ai-accent) 12%, transparent); font-weight: 600; white-space: nowrap; }
+  .result-model { min-width: 0; overflow: hidden; color: var(--ai-text-secondary); text-overflow: ellipsis; white-space: nowrap; }
+  .result-actions { display: flex; flex: none; align-items: center; gap: 2px; }
+  .result-actions .icon-button { width: 28px; height: 28px; }
+  .result-actions .icon-button svg { width: 16px; height: 16px; }
+  .result-actions .icon-button[data-copied="true"] { color: var(--ai-accent); }
+  .result-delete:hover:not(:disabled) { color: #b42318 !important; background: #fef3f2 !important; }
+  .result-insert { min-height: 28px; padding: 0 10px; appearance: none; border: 0; border-radius: 14px; color: var(--ai-accent); background: transparent; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+  .result-insert:hover:not(:disabled) { background: color-mix(in srgb, var(--ai-accent) 12%, transparent); }
+  .result-body { color: var(--ai-text); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; user-select: text; }
+  /* Long results show about eight lines and fade out until expanded. */
+  .result-body[data-collapsed="true"] { max-height: calc(13px * 1.6 * 8); overflow: hidden; }
+  .result-body[data-overflowing="true"] { -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent); mask-image: linear-gradient(to bottom, #000 70%, transparent); }
+  .result-body > :first-child { margin-top: 0; }
+  .result-body > :last-child { margin-bottom: 0; }
+  .result-body p { margin: .4em 0; }
+  .result-body ul, .result-body ol { margin: .4em 0; padding-left: 20px; }
+  .result-body h1, .result-body h2, .result-body h3, .result-body h4, .result-body h5, .result-body h6 { margin: .6em 0 .3em; font-size: 13px; font-weight: 650; }
+  .result-body pre { overflow-x: auto; padding: 8px; border-radius: 8px; background: var(--ai-surface-subtle); }
+  .result-body code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: .9em; }
+  .result-body blockquote { margin: .4em 0; padding-left: 10px; border-left: 3px solid var(--ai-border); color: var(--ai-text-secondary); }
+  .result-body table { border-collapse: collapse; }
+  .result-body th, .result-body td { padding: 3px 6px; border: 1px solid var(--ai-border); }
+  .result-body a { color: var(--ai-accent); }
+  .result-toggle { justify-self: start; min-height: 24px; margin-left: -8px; padding: 0 8px; appearance: none; border: 0; border-radius: 12px; color: var(--ai-accent); background: transparent; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .result-toggle:hover { background: color-mix(in srgb, var(--ai-accent) 12%, transparent); }
+  .launcher:focus-visible, .icon-button:focus-visible, .result-insert:focus-visible, .result-toggle:focus-visible,
   .tone-trigger:focus-visible, .generate-button:focus-visible {
     outline: 3px solid var(--ai-focus);
     outline-offset: 2px;
   }
   @media (max-width: 420px) {
-    .panel {
-      width: calc(100vw - 16px);
-      height: calc(100vh - 16px);
-      height: calc(100dvh - 16px);
-      max-height: calc(100vh - 16px);
-      max-height: calc(100dvh - 16px);
-      border-radius: 16px;
-    }
-    .source-preview, .result-wrap { padding-left: 16px; padding-right: 16px; }
-    .history-section { padding-left: 10px; padding-right: 10px; }
-    .feedback { padding: 0 16px; }
-    .privacy { padding-left: 16px; padding-right: 16px; }
+    .panel { width: calc(100vw - 16px); border-radius: 16px; }
+    .header { padding-left: 16px; padding-right: 12px; }
+    .content { padding-left: 16px; padding-right: 16px; }
   }
   /* Dark palette follows the extension's Appearance setting (Chrome's mode by default), set on the host. */
   :host([data-appearance="dark"]) {
@@ -447,15 +437,17 @@ const STYLE = `
     --ai-border: #42454d;
   }
   :host([data-appearance="dark"]) .panel { box-shadow: 0 22px 64px rgba(0,0,0,.48), 0 5px 18px rgba(0,0,0,.28); }
-  :host([data-appearance="dark"]) .composer-input::placeholder { color: #777d88; }
+  :host([data-appearance="dark"]) .source-input::placeholder, :host([data-appearance="dark"]) .composer-input::placeholder { color: #777d88; }
   :host([data-appearance="dark"]) .tone-icon { color: color-mix(in srgb, var(--ai-accent) 68%, white); background: color-mix(in srgb, var(--ai-accent) 18%, var(--ai-surface-subtle)); }
   :host([data-appearance="dark"]) .tone-option[aria-selected="true"] { color: color-mix(in srgb, var(--ai-accent) 68%, white); }
   :host([data-appearance="dark"]) .tone-popover { box-shadow: 0 12px 32px rgba(0,0,0,.42); }
   :host([data-appearance="dark"]) .status[data-kind="error"] { color: #fda29b; background: #4a2525; }
   :host([data-appearance="dark"]) .status[data-kind="success"] { color: #6ce9a6; background: #183a2d; }
-  :host([data-appearance="dark"]) .composer { box-shadow: 0 7px 22px rgba(0,0,0,.30); }
+  :host([data-appearance="dark"]) .result-card { background: color-mix(in srgb, var(--ai-accent) 16%, var(--ai-surface-subtle)); }
+  :host([data-appearance="dark"]) .result-tone, :host([data-appearance="dark"]) .result-insert, :host([data-appearance="dark"]) .result-toggle { color: color-mix(in srgb, var(--ai-accent) 68%, white); }
+  :host([data-appearance="dark"]) .composer { box-shadow: 0 4px 14px rgba(0,0,0,.30); }
   @media (prefers-reduced-motion: reduce) {
-    .launcher, .panel, .icon-button, .insert-button, .retry-button, .tone-trigger, .tone-popover, .generate-button { animation: none; transition: none; }
+    .launcher, .panel, .icon-button, .result-insert, .tone-trigger, .tone-popover, .generate-button { animation: none; transition: none; }
   }
 `;
 
@@ -508,7 +500,7 @@ export class TextareaWritingAssistant {
   private readonly title: HTMLHeadingElement;
   private readonly description: HTMLParagraphElement;
   private readonly closeButton: HTMLButtonElement;
-  private readonly sourcePreview: HTMLParagraphElement;
+  private readonly sourceInput: HTMLTextAreaElement;
   private readonly modelLabel: HTMLSpanElement;
   private readonly modelSection: HTMLDivElement;
   private readonly modelTrigger: HTMLButtonElement;
@@ -525,7 +517,10 @@ export class TextareaWritingAssistant {
   private readonly toneTrigger: HTMLButtonElement;
   private readonly toneValue: HTMLSpanElement;
   private readonly tonePopover: HTMLDivElement;
-  private readonly toneOptions = new Map<WritingTone, HTMLDivElement>();
+  private readonly toneOptions = new Map<string, HTMLDivElement>();
+  private styleOptions: StyleOption[] = [];
+  private skills: WritingAssistantSkill[] = [];
+  private skillsRevision = 0;
   private readonly toneIcons: Record<WritingTone, string> = {
     polish: '<path d="m12 3 .8 2.4a5.5 5.5 0 0 0 3.5 3.5l2.4.8-2.4.8a5.5 5.5 0 0 0-3.5 3.5l-.8 2.4-.8-2.4a5.5 5.5 0 0 0-3.5-3.5l-2.4-.8 2.4-.8a5.5 5.5 0 0 0 3.5-3.5L12 3Z"/>',
     professional: '<rect x="4" y="7" width="16" height="12" rx="2"/><path d="M9 7V5h6v2M4 12h16M10 12v2h4v-2"/>',
@@ -535,22 +530,11 @@ export class TextareaWritingAssistant {
   private toneActiveIndex = 0;
   private readonly contextLabel: HTMLLabelElement;
   private readonly contextInput: HTMLInputElement;
-  private readonly privacyText: HTMLSpanElement;
   private readonly generateButton: HTMLButtonElement;
   private readonly generateLabel: HTMLSpanElement;
   private readonly generateIcon: SVGSVGElement;
   private readonly spinner: HTMLSpanElement;
-  private readonly resultWrap: HTMLDivElement;
-  private readonly resultLabel: HTMLSpanElement;
-  private readonly resultSourceLabel: HTMLSpanElement;
-  private readonly resultSource: HTMLParagraphElement;
-  private readonly result: HTMLDivElement;
-  private readonly historySection: HTMLDivElement;
-  private readonly historyLabel: HTMLSpanElement;
-  private readonly historyList: HTMLDivElement;
-  private readonly insertButton: HTMLButtonElement;
-  private readonly retryButton: HTMLButtonElement;
-  private readonly copyButton: HTMLButtonElement;
+  private readonly resultList: HTMLDivElement;
   private readonly status: HTMLDivElement;
   private readonly hostObserver: MutationObserver;
   /** Follows the bound textarea's size (drag handle, auto-grow) which fires no scroll or window resize. */
@@ -561,17 +545,17 @@ export class TextareaWritingAssistant {
   private target?: HTMLTextAreaElement;
   private sourceRange?: { start: number; end: number; selected: boolean };
   private sourceTextSnapshot = '';
+  private insertAt?: { start: number; end: number };
   private interactionContainer?: HTMLElement;
   private panelOpen = false;
   private panelManuallyPositioned = false;
   private dragState?: { pointerId: number; offsetX: number; offsetY: number };
   private generating = false;
   private generation = 0;
-  private copyConfirmed = false;
-  private copyResetTimer?: number;
   private readonly historyCopyResetTimers = new Map<HTMLButtonElement, number>();
-  private activeResult?: WritingAssistantHistoryItem;
+  /** Every result of this session, newest first. */
   private history: WritingAssistantHistoryItem[] = [];
+  private readonly expandedResults = new Set<string>();
   private modelLoadPromise?: Promise<void>;
   private readonly createRequestId: () => string;
 
@@ -609,64 +593,29 @@ export class TextareaWritingAssistant {
     brandMark.className = 'brand-mark';
     brandMark.setAttribute('aria-hidden', 'true');
     brandMark.append(createLogo(document));
-    const titleWrap = document.createElement('div');
-    titleWrap.className = 'title-wrap';
     this.title = document.createElement('h2');
     this.title.className = 'title';
     this.title.id = 'chrome-ai-writing-title';
     this.description = document.createElement('p');
     this.description.className = 'description';
-    titleWrap.append(this.title, this.description);
     this.closeButton = document.createElement('button');
     this.closeButton.type = 'button';
     this.closeButton.className = 'icon-button close-button';
     this.closeButton.append(createSvg(document, '<path d="m6 6 12 12M18 6 6 18"/>'));
-    this.header.append(brandMark, titleWrap, this.closeButton);
+    this.header.append(brandMark, this.title, this.closeButton, this.description);
 
     this.content = document.createElement('div');
     this.content.className = 'content';
-    this.sourcePreview = document.createElement('p');
-    this.sourcePreview.className = 'source-preview';
+    this.sourceInput = document.createElement('textarea');
+    this.sourceInput.className = 'source-input';
+    this.sourceInput.id = 'chrome-ai-writing-source';
+    this.sourceInput.rows = 3;
+    this.sourceInput.maxLength = 20_000;
 
-    this.resultWrap = document.createElement('div');
-    this.resultWrap.className = 'result-wrap';
-    const resultSourceBlock = document.createElement('div');
-    resultSourceBlock.className = 'result-source-block';
-    this.resultSourceLabel = document.createElement('span');
-    this.resultSourceLabel.className = 'history-block-label';
-    this.resultSource = document.createElement('p');
-    this.resultSource.className = 'result-source';
-    resultSourceBlock.append(this.resultSourceLabel, this.resultSource);
-    this.resultLabel = document.createElement('span');
-    this.resultLabel.className = 'result-label';
-    this.resultLabel.id = 'chrome-ai-writing-result-label';
-    this.result = document.createElement('div');
-    this.result.id = 'chrome-ai-writing-result';
-    this.result.className = 'result';
-    this.result.setAttribute('role', 'region');
-    this.result.setAttribute('aria-labelledby', this.resultLabel.id);
-    const resultActions = document.createElement('div');
-    resultActions.className = 'result-actions';
-    this.insertButton = document.createElement('button');
-    this.insertButton.type = 'button';
-    this.insertButton.className = 'insert-button';
-    this.retryButton = document.createElement('button');
-    this.retryButton.type = 'button';
-    this.retryButton.className = 'retry-button';
-    this.copyButton = document.createElement('button');
-    this.copyButton.type = 'button';
-    this.copyButton.className = 'icon-button copy-button';
-    this.copyButton.append(createSvg(document, '<rect x="9" y="9" width="10" height="10" rx="2"/><path d="M15 9V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/>'));
-    resultActions.append(this.insertButton, this.retryButton, this.copyButton);
-    this.resultWrap.append(resultSourceBlock, this.resultLabel, this.result, resultActions);
-
-    this.historySection = document.createElement('div');
-    this.historySection.className = 'history-section';
-    this.historyLabel = document.createElement('span');
-    this.historyLabel.className = 'history-heading';
-    this.historyList = document.createElement('div');
-    this.historyList.className = 'history-list';
-    this.historySection.append(this.historyLabel, this.historyList);
+    this.resultList = document.createElement('div');
+    this.resultList.className = 'results';
+    this.resultList.setAttribute('role', 'list');
+    this.resultList.setAttribute('aria-live', 'polite');
 
     const modelSection = document.createElement('div');
     modelSection.className = 'model-section';
@@ -754,33 +703,9 @@ export class TextareaWritingAssistant {
     this.tonePopover.className = 'tone-popover';
     this.tonePopover.setAttribute('role', 'listbox');
     this.tonePopover.setAttribute('aria-labelledby', this.toneLabel.id);
-    for (const [index, value] of WRITING_TONES.entries()) {
-      const option = document.createElement('option');
-      option.value = value;
-      this.toneSelect.append(option);
-      const item = document.createElement('div');
-      item.id = `chrome-ai-writing-tone-option-${value}`;
-      item.className = 'tone-option';
-      item.dataset.tone = value;
-      item.setAttribute('role', 'option');
-      const icon = document.createElement('span');
-      icon.className = 'tone-icon';
-      icon.append(createSvg(document, this.toneIcons[value]));
-      const label = document.createElement('span');
-      label.className = 'tone-text';
-      const check = document.createElement('span');
-      check.className = 'tone-check';
-      check.append(createSvg(document, '<path d="m6 12 4 4 8-8"/>'));
-      item.append(icon, label, check);
-      item.addEventListener('pointerenter', () => this.setToneActiveIndex(index));
-      item.addEventListener('mousedown', (event) => event.preventDefault());
-      item.addEventListener('click', () => this.chooseTone(value));
-      this.toneOptions.set(value, item);
-      this.tonePopover.append(item);
-    }
     tonePickerWrap.append(this.toneTrigger, this.tonePopover);
     toneSection.append(this.toneLabel, this.toneSelect, tonePickerWrap);
-    this.syncTonePicker();
+    this.renderToneOptions();
 
     const feedback = document.createElement('div');
     feedback.className = 'feedback';
@@ -790,18 +715,9 @@ export class TextareaWritingAssistant {
     this.status.setAttribute('aria-live', 'polite');
     feedback.append(this.status);
 
-    const privacy = document.createElement('div');
-    privacy.className = 'privacy';
-    privacy.append(createSvg(document, '<path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>'));
-    this.privacyText = document.createElement('span');
-    privacy.append(this.privacyText);
     const pickerRow = document.createElement('div');
     pickerRow.className = 'picker-row';
     pickerRow.append(toneSection, modelSection);
-    this.content.append(this.sourcePreview, this.resultWrap, this.historySection, pickerRow, feedback, privacy);
-
-    const composerShell = document.createElement('div');
-    composerShell.className = 'composer-shell';
     const composer = document.createElement('div');
     composer.className = 'composer';
     this.contextLabel = document.createElement('label');
@@ -822,9 +738,9 @@ export class TextareaWritingAssistant {
     this.generateLabel.className = 'sr-only';
     this.generateButton.append(this.spinner, this.generateIcon, this.generateLabel);
     composer.append(this.contextLabel, this.contextInput, this.generateButton);
-    composerShell.append(composer);
+    this.content.append(this.sourceInput, pickerRow, composer, feedback, this.resultList);
 
-    panelLayout.append(this.header, this.content, composerShell);
+    panelLayout.append(this.header, this.content);
     this.panel.append(panelLayout);
     this.panel.setAttribute('aria-labelledby', this.title.id);
     this.shadow.append(style, this.launcher, this.panel);
@@ -841,10 +757,13 @@ export class TextareaWritingAssistant {
       event.preventDefault();
       void this.generate();
     });
-    this.insertButton.addEventListener('click', () => this.insertResult(this.activeResult));
-    this.retryButton.addEventListener('click', () => void this.generate());
-    this.copyButton.addEventListener('click', () => void this.copyResult(this.activeResult, this.result, this.copyButton, true));
-    this.toneSelect.addEventListener('change', () => this.syncTonePicker());
+    this.sourceInput.addEventListener('input', () => {
+      // A typed or pasted source no longer maps to a range of the page textarea;
+      // inserting then goes to the caret captured when the assistant opened.
+      this.sourceRange = undefined;
+      this.sourceTextSnapshot = this.sourceInput.value.trim();
+      this.refreshSourceState();
+    });
     this.toneTrigger.addEventListener('click', () => (this.isTonePickerOpen() ? this.closeTonePicker(false) : this.openTonePicker()));
     this.toneTrigger.addEventListener('keydown', this.onToneTriggerKeyDown);
     this.modelTrigger.addEventListener('click', () => (this.isModelPickerOpen() ? this.closeModelPicker(false) : this.openModelPicker()));
@@ -895,8 +814,6 @@ export class TextareaWritingAssistant {
     this.options.window.removeEventListener('resize', this.reposition);
     this.hostObserver.disconnect();
     this.targetResizeObserver?.disconnect();
-    if (this.copyResetTimer !== undefined) this.options.window.clearTimeout(this.copyResetTimer);
-    this.copyResetTimer = undefined;
     for (const timer of this.historyCopyResetTimers.values()) this.options.window.clearTimeout(timer);
     this.historyCopyResetTimers.clear();
     this.shadow.removeEventListener('keydown', this.onShadowKeyDown);
@@ -911,9 +828,7 @@ export class TextareaWritingAssistant {
       this.generation += 1;
       this.generating = false;
       this.generateButton.disabled = true;
-      this.insertButton.disabled = true;
-      this.retryButton.disabled = true;
-      this.copyButton.disabled = true;
+      this.sourceInput.readOnly = false;
       this.spinner.style.display = 'none';
       this.generateIcon.style.display = '';
       this.generateLabel.textContent = this.messages.writingAssistantGenerate;
@@ -957,31 +872,16 @@ export class TextareaWritingAssistant {
     this.modelSearch.setAttribute('aria-label', messages.modelSearchPlaceholder);
     if (this.isModelPickerOpen()) this.renderModelOptions();
     this.toneLabel.textContent = messages.writingAssistantTone;
-    const toneLabels: Record<WritingTone, string> = {
-      polish: messages.writingTonePolish,
-      professional: messages.writingToneProfessional,
-      friendly: messages.writingToneFriendly,
-      concise: messages.writingToneConcise,
-    };
-    for (const option of this.toneSelect.options) option.textContent = toneLabels[option.value as WritingTone];
-    for (const [tone, option] of this.toneOptions) {
-      const label = option.querySelector<HTMLElement>('.tone-text');
-      if (label) label.textContent = toneLabels[tone];
-    }
-    this.syncTonePicker();
+    this.renderToneOptions();
+    this.sourceInput.placeholder = messages.writingAssistantInputPlaceholder;
+    this.sourceInput.setAttribute('aria-label', messages.writingAssistantOriginal);
     this.contextLabel.textContent = messages.writingAssistantContext;
-    this.contextInput.placeholder = messages.writingAssistantContextPlaceholder;
-    this.privacyText.textContent = messages.writingAssistantPrivacy;
+    this.contextInput.placeholder = messages.writingAssistantContext;
     this.generateLabel.textContent = this.generating ? messages.writingAssistantGenerating : messages.writingAssistantGenerate;
     this.generateButton.title = this.generateLabel.textContent;
     this.generateButton.setAttribute('aria-label', this.generateLabel.textContent);
-    this.resultSourceLabel.textContent = messages.writingAssistantOriginal;
-    this.resultLabel.textContent = messages.writingAssistantResult;
-    this.historyLabel.textContent = messages.writingAssistantHistory;
-    this.insertButton.textContent = messages.writingAssistantInsert;
-    this.retryButton.textContent = messages.retry;
-    this.updateCopyButton(this.copyButton, this.copyConfirmed);
-    this.renderHistory();
+    this.resultList.setAttribute('aria-label', messages.writingAssistantResult);
+    this.renderResults();
   }
 
   setAppearance(appearance: ResolvedAppearance): void {
@@ -1010,6 +910,18 @@ export class TextareaWritingAssistant {
       .then((messages) => {
         if (revision !== this.messagesRefreshRevision) return;
         this.applyMessages(messages);
+      })
+      .catch(() => undefined);
+  }
+
+  private refreshSkills(): void {
+    if (!this.options.loadSkills) return;
+    const revision = ++this.skillsRevision;
+    void this.options.loadSkills()
+      .then((skills) => {
+        if (revision !== this.skillsRevision) return;
+        this.skills = skills;
+        this.renderToneOptions();
       })
       .catch(() => undefined);
   }
@@ -1149,7 +1061,7 @@ export class TextareaWritingAssistant {
     this.closeModelPicker(false);
     this.tonePopover.dataset.open = 'true';
     this.toneTrigger.setAttribute('aria-expanded', 'true');
-    this.setToneActiveIndex(Math.max(0, WRITING_TONES.indexOf(this.toneSelect.value as WritingTone)));
+    this.setToneActiveIndex(Math.max(0, this.styleOptions.findIndex(({ key }) => key === this.toneSelect.value)));
     this.placePopover(this.tonePopover, this.toneTrigger, 'start', 180);
   }
 
@@ -1196,26 +1108,96 @@ export class TextareaWritingAssistant {
     if (restoreFocus) this.toneTrigger.focus({ preventScroll: true });
   }
 
-  private chooseTone(tone: WritingTone): void {
-    this.toneSelect.value = tone;
+  private chooseTone(key: string): void {
+    this.toneSelect.value = key;
     this.syncTonePicker();
     this.closeTonePicker(true);
   }
 
   private setToneActiveIndex(index: number): void {
     this.toneActiveIndex = index;
-    for (const [optionIndex, tone] of WRITING_TONES.entries()) {
-      this.toneOptions.get(tone)!.dataset.active = optionIndex === index ? 'true' : 'false';
+    for (const [optionIndex, option] of this.styleOptions.entries()) {
+      this.toneOptions.get(option.key)!.dataset.active = optionIndex === index ? 'true' : 'false';
     }
-    this.toneTrigger.setAttribute('aria-activedescendant', `chrome-ai-writing-tone-option-${WRITING_TONES[index]}`);
+    const active = this.styleOptions[index];
+    if (active) this.toneTrigger.setAttribute('aria-activedescendant', this.toneOptions.get(active.key)!.id);
+  }
+
+  /**
+   * The style menu lists the four tones, a divider, then the user's skills.
+   * Options are rebuilt only when that list changes; otherwise labels update
+   * in place so open menus and focus are not disturbed.
+   */
+  private renderToneOptions(): void {
+    const { document } = this.options;
+    const next: StyleOption[] = [
+      ...WRITING_TONES.map((tone) => ({ key: tone as string, label: this.toneLabelFor(tone), tone })),
+      ...this.skills.map((skill) => ({ key: `${SKILL_STYLE_PREFIX}${skill.id}`, label: skill.name, skill })),
+    ];
+    // The hidden select holds the chosen style; rebuilding it would reset that.
+    const previous = this.toneSelect.value || 'polish';
+    const sameKeys = next.length === this.styleOptions.length
+      && next.every((option, index) => option.key === this.styleOptions[index]?.key);
+    this.styleOptions = next;
+
+    if (sameKeys && this.toneOptions.size === next.length) {
+      for (const option of next) {
+        this.toneOptions.get(option.key)!.querySelector<HTMLElement>('.tone-text')!.textContent = option.label;
+        const native = [...this.toneSelect.options].find(({ value }) => value === option.key);
+        if (native) native.textContent = option.label;
+      }
+    } else {
+      this.toneSelect.replaceChildren();
+      this.tonePopover.replaceChildren();
+      this.toneOptions.clear();
+      for (const [index, option] of next.entries()) {
+        const native = document.createElement('option');
+        native.value = option.key;
+        native.textContent = option.label;
+        this.toneSelect.append(native);
+        if (option.skill && !next[index - 1]?.skill) {
+          const separator = document.createElement('div');
+          separator.className = 'tone-separator';
+          separator.setAttribute('role', 'separator');
+          this.tonePopover.append(separator);
+        }
+        const item = document.createElement('div');
+        item.id = `chrome-ai-writing-tone-option-${option.key}`;
+        item.className = 'tone-option';
+        item.dataset.tone = option.key;
+        item.setAttribute('role', 'option');
+        const icon = document.createElement('span');
+        icon.className = 'tone-icon';
+        icon.append(createSvg(document, option.tone ? this.toneIcons[option.tone] : '<path d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z"/>'));
+        const label = document.createElement('span');
+        label.className = 'tone-text';
+        label.textContent = option.label;
+        const check = document.createElement('span');
+        check.className = 'tone-check';
+        check.append(createSvg(document, '<path d="m6 12 4 4 8-8"/>'));
+        item.append(icon, label, check);
+        item.addEventListener('pointerenter', () => this.setToneActiveIndex(index));
+        item.addEventListener('mousedown', (event) => event.preventDefault());
+        item.addEventListener('click', () => this.chooseTone(option.key));
+        this.toneOptions.set(option.key, item);
+        this.tonePopover.append(item);
+      }
+      if (this.isTonePickerOpen()) this.placePopover(this.tonePopover, this.toneTrigger, 'start', 180);
+    }
+    // A skill deleted elsewhere falls back to the default tone.
+    this.toneSelect.value = next.some(({ key }) => key === previous) ? previous : 'polish';
+    this.syncTonePicker();
+  }
+
+  private selectedStyleOption(): StyleOption {
+    return this.styleOptions.find(({ key }) => key === this.toneSelect.value) ?? this.styleOptions[0]!;
   }
 
   private syncTonePicker(): void {
-    const selectedTone = this.toneSelect.value as WritingTone;
-    for (const [tone, option] of this.toneOptions) {
-      option.setAttribute('aria-selected', String(tone === selectedTone));
+    for (const [key, option] of this.toneOptions) {
+      option.setAttribute('aria-selected', String(key === this.toneSelect.value));
     }
-    this.toneValue.textContent = this.toneLabelFor(selectedTone);
+    this.toneValue.textContent = this.selectedStyleOption().label;
     this.toneTrigger.title = this.toneValue.textContent;
   }
 
@@ -1227,10 +1209,11 @@ export class TextareaWritingAssistant {
         return;
       }
       const step = event.key === 'ArrowDown' ? 1 : -1;
-      this.setToneActiveIndex((this.toneActiveIndex + step + WRITING_TONES.length) % WRITING_TONES.length);
+      const count = this.styleOptions.length;
+      this.setToneActiveIndex((this.toneActiveIndex + step + count) % count);
     } else if ((event.key === 'Enter' || event.key === ' ') && this.isTonePickerOpen()) {
       event.preventDefault();
-      this.chooseTone(WRITING_TONES[this.toneActiveIndex]!);
+      this.chooseTone(this.styleOptions[this.toneActiveIndex]!.key);
     } else if (event.key === 'Escape') {
       // The shadow-level handler still stops Escape from reaching the page.
       this.closeTonePicker(true);
@@ -1311,7 +1294,7 @@ export class TextareaWritingAssistant {
     // Do not follow input/change (including framework onChange updates). The
     // source shown in the assistant is a stable snapshot and changes only when
     // the user selects a non-empty text range in the bound textarea.
-    if (this.captureSelectedSourceFromTarget()) this.refreshSourceState();
+    if (this.captureSelectedSourceFromTarget()) this.syncSourceFromSelection();
   };
 
   private readonly onFocusOut = (): void => {
@@ -1491,7 +1474,8 @@ export class TextareaWritingAssistant {
     const currentWidth = Number.parseFloat(this.panel.style.width);
     const currentHeight = Number.parseFloat(this.panel.style.height);
     const width = Math.min(Number.isFinite(currentWidth) ? currentWidth : 460, availableWidth);
-    const height = Math.min(Number.isFinite(currentHeight) ? currentHeight : 680, availableHeight);
+    const natural = this.measureNaturalHeight();
+    const height = Math.min(natural > 0 ? natural : Number.isFinite(currentHeight) ? currentHeight : 680, availableHeight);
     const minLeft = space.viewportLeft + margin;
     const minTop = space.viewportTop + margin;
     const maxLeft = Math.max(minLeft, space.viewportRight - margin - width);
@@ -1504,6 +1488,15 @@ export class TextareaWritingAssistant {
     this.panel.style.height = `${height}px`;
     this.panel.style.left = `${left}px`;
     this.panel.style.top = `${top}px`;
+  }
+
+  /** The panel's content height without the inline height cap; 0 when there is no layout. */
+  private measureNaturalHeight(): number {
+    const previous = this.panel.style.height;
+    this.panel.style.height = 'auto';
+    const natural = this.panel.offsetHeight;
+    this.panel.style.height = previous;
+    return natural;
   }
 
   private refreshPanelPosition(): void {
@@ -1585,7 +1578,9 @@ export class TextareaWritingAssistant {
     const anchoredRoom = placeAbove ? roomAbove : roomBelow;
     // Keep the panel attached to the launcher whenever there is enough usable
     // room. On extremely small viewports, fill the safe viewport and clamp.
-    const height = Math.min(680, anchoredRoom >= 140 ? anchoredRoom : fullAvailableHeight);
+    const maximumHeight = Math.min(680, anchoredRoom >= 140 ? anchoredRoom : fullAvailableHeight);
+    const natural = this.measureNaturalHeight();
+    const height = natural > 0 ? Math.min(natural, maximumHeight) : maximumHeight;
     const anchorRight = launcherLeft + launcherSize;
     const minLeft = space.viewportLeft + margin;
     const maximumWidth = Math.min(460, availableWidth);
@@ -1622,11 +1617,16 @@ export class TextareaWritingAssistant {
     this.clearStatus();
     this.syncTonePicker();
     void this.ensureModelsLoaded();
-    // Never treat the textarea's full value as rewrite input. A source snapshot
-    // is created only from a non-empty range the user explicitly selected.
+    this.refreshSkills();
+    // Never treat the textarea's full value as rewrite input. The source starts
+    // from a non-empty range the user explicitly selected, or stays empty for
+    // the user to type; the caret is kept so 插入 can put text there.
     this.sourceRange = undefined;
     this.sourceTextSnapshot = '';
+    const target = this.target;
+    this.insertAt = { start: target.selectionStart ?? target.value.length, end: target.selectionEnd ?? target.value.length };
     this.captureSelectedSourceFromTarget();
+    this.sourceInput.value = this.sourceTextSnapshot;
     this.refreshSourceState();
     this.positionPanel();
     this.options.window.requestAnimationFrame?.(() => this.refreshPanelPosition());
@@ -1660,12 +1660,12 @@ export class TextareaWritingAssistant {
     }
 
     const generation = ++this.generation;
+    const style = this.selectedStyleOption();
+    const tone = style.tone ?? 'polish';
+    const skill = style.skill;
     this.generating = true;
-    this.sourcePreview.textContent = text;
     this.generateButton.disabled = true;
-    this.insertButton.disabled = true;
-    this.retryButton.disabled = true;
-    this.copyButton.disabled = true;
+    this.sourceInput.readOnly = true;
     this.spinner.style.display = 'inline-block';
     this.generateIcon.style.display = 'none';
     this.generateLabel.textContent = this.messages.writingAssistantGenerating;
@@ -1679,25 +1679,24 @@ export class TextareaWritingAssistant {
         text,
         instruction: this.contextInput.value.trim() || undefined,
         ...(this.selectedModel.trim() ? { model: this.selectedModel.trim() } : {}),
-        tone: this.toneSelect.value as WritingTone,
+        tone,
+        ...(skill ? { skill: { name: skill.name, prompt: skill.prompt } } : {}),
       });
       if (generation !== this.generation) return;
-      if (this.activeResult) this.history.unshift(this.activeResult);
-      this.activeResult = {
+      this.history.unshift({
         id: `${generation}-${Date.now()}`,
         sourceText: text,
         resultText: response.text,
-        tone: this.toneSelect.value as WritingTone,
+        tone,
+        ...(skill ? { skillName: skill.name } : {}),
         ...(this.selectedModel.trim() ? { model: this.selectedModel.trim() } : {}),
-        ...(this.sourceRange ? { sourceRange: { ...this.sourceRange } } : {}),
-      };
-      this.resultSource.textContent = text;
-      this.result.textContent = response.text;
-      this.resultWrap.style.display = 'grid';
-      this.renderHistory();
+        ...(this.sourceRange ? { sourceRange: { ...this.sourceRange } } : this.insertAt ? { insertAt: { ...this.insertAt } } : {}),
+      });
+      this.renderResults();
       this.refreshPanelPosition();
       this.revealResult();
       const revealAfterLayout = () => {
+        this.renderResults();
         this.refreshPanelPosition();
         this.revealResult();
       };
@@ -1709,11 +1708,8 @@ export class TextareaWritingAssistant {
     } finally {
       if (generation === this.generation) {
         this.generating = false;
+        this.sourceInput.readOnly = false;
         this.refreshSourceState(false);
-        const hasResult = Boolean(this.activeResult?.resultText.trim());
-        this.insertButton.disabled = !hasResult;
-        this.retryButton.disabled = !hasResult;
-        this.copyButton.disabled = !hasResult;
         this.spinner.style.display = 'none';
         this.generateIcon.style.display = '';
         this.generateLabel.textContent = this.messages.writingAssistantGenerate;
@@ -1728,17 +1724,10 @@ export class TextareaWritingAssistant {
       if (!this.generating) this.generateButton.disabled = true;
       return;
     }
-
-    const text = this.getSourceText();
-    this.sourcePreview.textContent = text;
     if (this.generating) return;
-
+    const text = this.getSourceText();
     this.generateButton.disabled = !text;
-    if (text) {
-      if (clearExistingStatus) this.clearStatus();
-      return;
-    }
-    if (clearExistingStatus) this.showStatus(this.messages.writingAssistantEmpty, 'error');
+    if (text && clearExistingStatus && this.status.dataset.kind === 'error') this.clearStatus();
   }
 
   private captureSelectedSourceFromTarget(): boolean {
@@ -1759,13 +1748,19 @@ export class TextareaWritingAssistant {
     return this.sourceTextSnapshot;
   }
 
+  /** Shows a newly selected range of the page textarea as the source. */
+  private syncSourceFromSelection(): void {
+    this.sourceInput.value = this.sourceTextSnapshot;
+    this.refreshSourceState();
+  }
+
   private revealResult(): void {
     const contentRect = this.content.getBoundingClientRect();
-    const resultRect = this.resultWrap.getBoundingClientRect();
+    const resultRect = this.resultList.getBoundingClientRect();
     const hasLayoutGeometry = contentRect.height > 0 || resultRect.height > 0;
     const resultTop = hasLayoutGeometry
       ? this.content.scrollTop + resultRect.top - contentRect.top
-      : this.resultWrap.offsetTop - this.content.offsetTop;
+      : this.resultList.offsetTop - this.content.offsetTop;
     // Assign scrollTop directly instead of relying on scrollTo/scrollIntoView.
     // This keeps scrolling scoped to the assistant and avoids moving the page's
     // own dialog or viewport.
@@ -1781,88 +1776,117 @@ export class TextareaWritingAssistant {
     }[tone];
   }
 
-  private renderHistory(): void {
+  private renderResults(): void {
+    const { document } = this.options;
     for (const timer of this.historyCopyResetTimers.values()) this.options.window.clearTimeout(timer);
     this.historyCopyResetTimers.clear();
-    this.historyList.replaceChildren();
-    this.historySection.style.display = this.history.length ? 'block' : 'none';
+    this.resultList.replaceChildren();
+    this.resultList.style.removeProperty('max-height');
+    this.resultList.dataset.hasResults = String(this.history.length > 0);
 
+    const bodies: Array<{ body: HTMLElement; toggle: HTMLButtonElement; id: string }> = [];
     for (const item of this.history) {
-      const card = this.options.document.createElement('article');
-      card.className = 'history-card';
+      const card = document.createElement('section');
+      card.className = 'result-card';
+      card.setAttribute('role', 'listitem');
+      card.setAttribute('aria-label', this.messages.writingAssistantResult);
       card.dataset.historyItemId = item.id;
 
-      const meta = this.options.document.createElement('div');
-      meta.className = 'history-meta';
-      const tone = this.options.document.createElement('span');
-      tone.className = 'history-tone';
-      tone.textContent = this.toneLabelFor(item.tone);
+      const header = document.createElement('div');
+      header.className = 'result-header';
+      const meta = document.createElement('div');
+      meta.className = 'result-meta';
+      const tone = document.createElement('span');
+      tone.className = 'result-tone';
+      tone.textContent = item.skillName ?? this.toneLabelFor(item.tone);
       meta.append(tone);
       if (item.model) {
-        const separator = this.options.document.createElement('span');
-        separator.textContent = '·';
-        const model = this.options.document.createElement('span');
-        model.className = 'history-model';
+        const model = document.createElement('span');
+        model.className = 'result-model';
         model.textContent = item.model;
-        meta.append(separator, model);
+        model.title = item.model;
+        meta.append(model);
       }
 
-      const sourceBlock = this.options.document.createElement('div');
-      sourceBlock.className = 'history-block';
-      const sourceLabel = this.options.document.createElement('span');
-      sourceLabel.className = 'history-block-label';
-      sourceLabel.textContent = this.messages.writingAssistantOriginal;
-      const source = this.options.document.createElement('p');
-      source.className = 'history-source';
-      source.textContent = item.sourceText;
-      sourceBlock.append(sourceLabel, source);
-
-      const resultBlock = this.options.document.createElement('div');
-      resultBlock.className = 'history-block';
-      const resultLabel = this.options.document.createElement('span');
-      resultLabel.className = 'history-block-label';
-      resultLabel.textContent = this.messages.writingAssistantResult;
-      const result = this.options.document.createElement('p');
-      result.className = 'history-result';
-      result.textContent = item.resultText;
-      resultBlock.append(resultLabel, result);
-
-      const actions = this.options.document.createElement('div');
-      actions.className = 'history-actions';
-      const insert = this.options.document.createElement('button');
+      const actions = document.createElement('div');
+      actions.className = 'result-actions';
+      const insert = document.createElement('button');
       insert.type = 'button';
-      insert.className = 'history-insert-button';
+      insert.className = 'result-insert';
       insert.textContent = this.messages.writingAssistantInsert;
       insert.addEventListener('click', () => this.insertResult(item));
-      const copy = this.options.document.createElement('button');
+      const body = document.createElement('div');
+      body.className = 'result-body';
+      body.append(renderMarkdown(document, item.resultText));
+      const copy = document.createElement('button');
       copy.type = 'button';
-      copy.className = 'icon-button history-copy-button';
+      copy.className = 'icon-button result-copy';
       this.updateCopyButton(copy, false);
-      copy.addEventListener('click', () => void this.copyResult(item, result, copy, false));
-      actions.append(insert, copy);
+      copy.addEventListener('click', () => void this.copyResult(item, body, copy));
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'icon-button result-delete';
+      remove.title = this.messages.writingAssistantDeleteResult;
+      remove.setAttribute('aria-label', this.messages.writingAssistantDeleteResult);
+      remove.append(createSvg(document, '<path d="M5 7h14M10 11v6M14 11v6M9 7l1-2h4l1 2M7 7l1 12h8l1-12"/>'));
+      remove.addEventListener('click', () => this.deleteResult(item.id));
+      actions.append(insert, copy, remove);
+      header.append(meta, actions);
 
-      card.append(meta, sourceBlock, resultBlock, actions);
-      this.historyList.append(card);
+      const expanded = this.expandedResults.has(item.id);
+      if (!expanded) body.dataset.collapsed = 'true';
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'result-toggle';
+      toggle.hidden = true;
+      toggle.setAttribute('aria-expanded', String(expanded));
+      toggle.textContent = expanded ? this.messages.writingAssistantCollapseResult : this.messages.writingAssistantExpandResult;
+      toggle.addEventListener('click', () => {
+        if (this.expandedResults.has(item.id)) this.expandedResults.delete(item.id);
+        else this.expandedResults.add(item.id);
+        this.renderResults();
+        this.refreshPanelPosition();
+      });
+      card.append(header, body, toggle);
+      this.resultList.append(card);
+      bodies.push({ body, toggle, id: item.id });
+    }
+
+    // Long results are clamped with a 展开全部 toggle; measured after mounting.
+    for (const { body, toggle, id } of bodies) {
+      const expanded = this.expandedResults.has(id);
+      const overflowing = expanded || body.scrollHeight > body.clientHeight + 1;
+      toggle.hidden = !overflowing;
+      if (overflowing && !expanded) body.dataset.overflowing = 'true';
+    }
+    // Results differ in length, so the list ends at the bottom of the third one.
+    const cards = [...this.resultList.children] as HTMLElement[];
+    const last = cards[VISIBLE_RESULTS - 1];
+    if (cards.length > VISIBLE_RESULTS && last) {
+      const height = Math.round(last.getBoundingClientRect().bottom - cards[0]!.getBoundingClientRect().top);
+      if (height > 0) this.resultList.style.maxHeight = `min(${height}px, var(--results-max))`;
+      this.resultList.dataset.scrollable = 'true';
+    } else {
+      delete this.resultList.dataset.scrollable;
     }
   }
 
+  private deleteResult(id: string): void {
+    this.history = this.history.filter((item) => item.id !== id);
+    this.expandedResults.delete(id);
+    this.renderResults();
+    this.refreshPanelPosition();
+  }
+
   private resetHistory(): void {
-    if (this.copyResetTimer !== undefined) this.options.window.clearTimeout(this.copyResetTimer);
-    this.copyResetTimer = undefined;
     for (const timer of this.historyCopyResetTimers.values()) this.options.window.clearTimeout(timer);
     this.historyCopyResetTimers.clear();
-    this.activeResult = undefined;
     this.history = [];
-    this.resultSource.textContent = '';
-    this.result.textContent = '';
-    this.resultWrap.style.display = 'none';
-    this.historyList.replaceChildren();
-    this.historySection.style.display = 'none';
-    this.updateCopyButton(this.copyButton, false);
+    this.expandedResults.clear();
+    this.renderResults();
   }
 
   private updateCopyButton(button: HTMLButtonElement, copied: boolean): void {
-    if (button === this.copyButton) this.copyConfirmed = copied;
     const label = copied ? this.messages.copied : this.messages.copy;
     const icon = copied
       ? '<path d="m5 12 4 4L19 6"/>'
@@ -1874,17 +1898,7 @@ export class TextareaWritingAssistant {
     else delete button.dataset.copied;
   }
 
-  private showCopyConfirmation(button: HTMLButtonElement, current: boolean): void {
-    if (current) {
-      if (this.copyResetTimer !== undefined) this.options.window.clearTimeout(this.copyResetTimer);
-      this.updateCopyButton(button, true);
-      this.copyResetTimer = this.options.window.setTimeout(() => {
-        this.copyResetTimer = undefined;
-        this.updateCopyButton(button, false);
-      }, 2_000);
-      return;
-    }
-
+  private showCopyConfirmation(button: HTMLButtonElement): void {
     const previousTimer = this.historyCopyResetTimers.get(button);
     if (previousTimer !== undefined) this.options.window.clearTimeout(previousTimer);
     this.updateCopyButton(button, true);
@@ -1896,12 +1910,11 @@ export class TextareaWritingAssistant {
   }
 
   private async copyResult(
-    item: WritingAssistantHistoryItem | undefined,
+    item: WritingAssistantHistoryItem,
     resultElement: HTMLElement,
     button: HTMLButtonElement,
-    current: boolean,
   ): Promise<void> {
-    const value = item?.resultText.trim() ?? '';
+    const value = item.resultText.trim();
     if (!value) return;
     try {
       const clipboard = this.options.window.navigator.clipboard;
@@ -1916,29 +1929,29 @@ export class TextareaWritingAssistant {
         if (!this.options.document.execCommand('copy')) throw new Error(this.messages.copy);
         selection?.removeAllRanges();
       }
-      this.showCopyConfirmation(button, current);
+      this.showCopyConfirmation(button);
     } catch (error) {
       this.showStatus(error instanceof Error ? error.message : String(error), 'error');
     }
   }
 
-  private insertResult(item: WritingAssistantHistoryItem | undefined): void {
+  private insertResult(item: WritingAssistantHistoryItem): void {
     if (!this.target?.isConnected) {
       this.showStatus(this.messages.writingAssistantTargetMissing, 'error');
       return;
     }
-    const value = item?.resultText ?? '';
+    const value = item.resultText;
     if (!value.trim()) return;
-    const range = item?.sourceRange ?? { start: 0, end: this.target.value.length, selected: false };
-    const safeStart = Math.max(0, Math.min(this.target.value.length, range.start));
-    const safeEnd = Math.max(safeStart, Math.min(this.target.value.length, range.end));
+    const length = this.target.value.length;
+    const range = item.sourceRange ?? item.insertAt ?? { start: length, end: length };
+    const safeStart = Math.max(0, Math.min(length, range.start));
+    const safeEnd = Math.max(safeStart, Math.min(length, range.end));
     const nextValue = `${this.target.value.slice(0, safeStart)}${value}${this.target.value.slice(safeEnd)}`;
     const nextCaret = safeStart + value.length;
     setTextareaValue(this.target, nextValue);
     this.target.focus({ preventScroll: true });
     this.target.setSelectionRange(nextCaret, nextCaret);
     this.showStatus(this.messages.writingAssistantInserted, 'success');
-    this.generateButton.disabled = false;
   }
 
   private showStatus(message: string, kind: 'error' | 'success'): void {

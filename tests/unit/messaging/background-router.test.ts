@@ -18,7 +18,9 @@ function handlers(): RuntimeCommandHandlers {
     SET_CONTEXT_LIMIT: vi.fn(async () => ({ documentCharacters: 80_000 })),
     SET_ATTACHMENT_LIMIT: vi.fn(async () => ({ attachmentMaxBytes: 10 * 1024 * 1024 })),
     GET_PROVIDER_SETTINGS: vi.fn(async () => ({ providers: [] })),
+    GET_WRITING_ASSISTANT_SKILLS: vi.fn(async () => ({ skills: [] })),
     GET_WRITING_ASSISTANT_PREFERENCES: vi.fn(async () => ({
+    
       languagePreference: 'auto', themePreference: 'blue', writingAssistantEnabled: true,
     })),
     SAVE_PROVIDER_CONFIG: vi.fn(async () => ({ saved: true })),
