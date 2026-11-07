@@ -803,6 +803,40 @@ describe('ChatComposer', () => {
     expect(screen.queryByRole('dialog', { name: 'AI 写作助手' })).not.toBeInTheDocument();
   });
 
+  it('shows three results in full and scrolls the list once a fourth arrives', async () => {
+    const user = userEvent.setup();
+    // Each result card is 100px tall with an 8px gap, stacked from y=0.
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      const index = this.parentElement ? [...this.parentElement.children].indexOf(this) : 0;
+      const top = index * 108;
+      return { top, bottom: top + 100, left: 0, right: 300, width: 300, height: 100, x: 0, y: top, toJSON: () => ({}) } as DOMRect;
+    });
+    let count = 0;
+    const rewrite = vi.fn(async () => `版本${++count}`);
+    try {
+      render(<ChatComposer value="草稿" onChange={vi.fn()} onSend={vi.fn()} writingRewrite={rewrite} />);
+      await user.click(screen.getByRole('button', { name: '添加内容' }));
+      await user.click(screen.getByRole('menuitem', { name: 'AI 写作助手' }));
+      const dialog = await screen.findByRole('dialog', { name: 'AI 写作助手' });
+      const polish = async (n: number) => {
+        await user.click(within(dialog).getByRole('button', { name: '开始润色' }));
+        await within(dialog).findByText(`版本${n}`);
+      };
+
+      for (const n of [1, 2, 3]) await polish(n);
+      const list = within(dialog).getByRole('list', { name: '润色结果' });
+      expect(list).not.toHaveAttribute('data-scrollable');
+      expect(list.style.maxHeight).toBe('');
+
+      await polish(4);
+      expect(list).toHaveAttribute('data-scrollable');
+      // Ends at the bottom of the third card: 2 * 108 + 100.
+      expect(list.style.maxHeight).toBe('316px');
+    } finally {
+      rectSpy.mockRestore();
+    }
+  });
+
   it('asks for text before polishing and shows rewrite errors', async () => {
     const user = userEvent.setup();
     const rewrite = vi.fn(async () => { throw new AppError('CONFIG_MISSING', 'missing'); });

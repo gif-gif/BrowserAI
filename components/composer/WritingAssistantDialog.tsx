@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { RuntimeClient } from '../../messaging/runtime-client';
 import { AppError } from '../../shared/errors/app-error';
 import { useI18n } from '../../shared/i18n/I18nProvider';
@@ -10,6 +10,8 @@ import { Select } from '../ui/Select';
 /** Mirrors the AI_WRITING_ASSIST contract limits. */
 const MAX_TEXT_LENGTH = 20_000;
 const MAX_INSTRUCTION_LENGTH = 1_000;
+/** Results shown before the list starts scrolling. */
+const VISIBLE_RESULTS = 3;
 
 export interface WritingRequest {
   text: string;
@@ -77,6 +79,7 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
   const [generating, setGenerating] = useState(false);
   const [copiedId, setCopiedId] = useState<string>();
   const resultListRef = useRef<HTMLDivElement>(null);
+  const [resultListHeight, setResultListHeight] = useState<number>();
   const rewriter = useMemo(() => rewrite ?? createDefaultRewriter(), [rewrite]);
 
   const toneLabels: Record<WritingTone, string> = {
@@ -90,6 +93,19 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
   const modelOptions = [{ value: '', label: messages.gatewayDefault }, ...models.map((value) => ({ value, label: value }))];
 
   useEffect(() => { textRef.current?.focus(); }, []);
+
+  // Results differ in length, so the cap is measured: the list ends at the
+  // bottom of the third result and scrolls for anything after it.
+  useLayoutEffect(() => {
+    const list = resultListRef.current;
+    const last = list?.children[VISIBLE_RESULTS - 1] as HTMLElement | undefined;
+    if (!list || results.length <= VISIBLE_RESULTS || !last) {
+      setResultListHeight(undefined);
+      return;
+    }
+    const first = list.children[0] as HTMLElement;
+    setResultListHeight(last.getBoundingClientRect().bottom - first.getBoundingClientRect().top);
+  }, [results]);
 
   useEffect(() => {
     function closeOnEscape(event: KeyboardEvent) {
@@ -201,7 +217,12 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
         </div>
         {error ? <p className="skill-dialog__error" role="alert">{error}</p> : null}
         {results.length ? (
-          <div ref={resultListRef} className="writing-dialog__results" role="list" aria-label={messages.writingAssistantResult} aria-live="polite">
+          <div
+            ref={resultListRef}
+            className="writing-dialog__results"
+            style={resultListHeight === undefined ? undefined : { maxHeight: resultListHeight }}
+            data-scrollable={results.length > VISIBLE_RESULTS || undefined}
+            role="list" aria-label={messages.writingAssistantResult} aria-live="polite">
             {results.map((item) => (
               <section key={item.id} className="writing-dialog__result" role="listitem" aria-label={messages.writingAssistantResult}>
                 <div className="writing-dialog__result-header">

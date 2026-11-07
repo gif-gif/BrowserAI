@@ -571,7 +571,9 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .writing-dialog__submit svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .writing-dialog__spinner { width: 16px; height: 16px; border: 2px solid color-mix(in srgb, var(--on-accent) 40%, transparent); border-top-color: var(--on-accent); border-radius: 50%; animation: panel-spin 800ms linear infinite; }
 /* Every polish stays in this list, newest first; it scrolls once it grows. */
-.writing-dialog__results { display: grid; gap: 8px; max-height: 320px; overflow-y: auto; overscroll-behavior: contain; }
+.writing-dialog__results { display: grid; gap: 8px; overflow-y: auto; overscroll-behavior: contain; }
+/* Up to three results show in full; the max-height set inline ends the list at the third. */
+.writing-dialog__results[data-scrollable] { padding-right: 2px; scrollbar-gutter: stable; }
 .writing-dialog__result { display: grid; gap: 6px; padding: 10px 12px 12px; border-radius: 12px; background: var(--blue-soft); }
 .writing-dialog__result-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 /* Tone as a small tag and the model as one truncated line, so neither wraps. */
