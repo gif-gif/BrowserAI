@@ -70,6 +70,24 @@ describe('runtime message contracts', () => {
       tone: 'polish',
       locale: 'en',
     }).success).toBe(false);
+    expect(runtimeCommandSchema.safeParse({
+      version: 1,
+      type: 'AI_WRITING_ASSIST',
+      requestId: 'writing-5',
+      text: 'Text',
+      tone: 'polish',
+      skill: { name: 'Email', prompt: 'Rewrite as a short email.' },
+      locale: 'en',
+    }).success).toBe(true);
+    expect(runtimeCommandSchema.safeParse({
+      version: 1,
+      type: 'AI_WRITING_ASSIST',
+      requestId: 'writing-6',
+      text: 'Text',
+      tone: 'polish',
+      skill: { name: 'Email', prompt: '' },
+      locale: 'en',
+    }).success).toBe(false);
   });
 
   it('validates history commands without exposing storage implementation details', () => {

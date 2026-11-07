@@ -67,6 +67,7 @@
 .ui-select__empty { margin: 0; padding: 8px 10px; color: var(--muted); font-size: 12px; }
 @keyframes ui-select-open { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
 @keyframes ui-select-open-up { from { opacity: 0; transform: translateY(4px) scale(.98); } to { opacity: 1; transform: none; } }
+.ui-select__separator { height: 1px; margin: 4px 8px; background: var(--line-soft, var(--line)); }
 .ui-select__group { padding: 8px 10px 4px; color: var(--muted); font-size: 11px; font-weight: 650; letter-spacing: .02em; }
 .ui-select__group:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--line-soft, var(--line)); }
 .ui-select__option {

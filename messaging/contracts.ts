@@ -132,6 +132,11 @@ export const runtimeCommandSchema = z.discriminatedUnion('type', [
     instruction: z.string().trim().max(1_000).optional(),
     model: z.string().trim().min(1).max(300).optional(),
     tone: z.enum(WRITING_TONES),
+    /** A user “/” skill chosen in place of a tone, sent by value. */
+    skill: z.object({
+      name: z.string().min(1).max(MAX_SKILL_NAME_LENGTH),
+      prompt: z.string().min(1).max(MAX_SKILL_PROMPT_LENGTH),
+    }).strict().optional(),
     locale: z.enum(['zh-CN', 'zh-TW', 'en']),
   }).strict(),
   z.object({ ...envelope, type: z.literal('EXTRACT_PAGE_CONTEXT'), tabId: z.number().int().nonnegative() }).strict(),

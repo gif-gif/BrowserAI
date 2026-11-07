@@ -803,6 +803,34 @@ describe('ChatComposer', () => {
     expect(screen.queryByRole('dialog', { name: 'AI 写作助手' })).not.toBeInTheDocument();
   });
 
+  it('offers user skills under the tones, separated by a line, and polishes with the chosen skill', async () => {
+    const user = userEvent.setup();
+    const rewrite = vi.fn(async () => '邮件版');
+    const skills = [{ id: 's1', name: '写成邮件', prompt: '改写成一封简短的邮件', createdAt: 1, updatedAt: 1 }];
+    render(<ChatComposer value="会议改到周三" onChange={vi.fn()} onSend={vi.fn()} skills={skills} writingRewrite={rewrite} />);
+
+    await user.click(screen.getByRole('button', { name: '添加内容' }));
+    await user.click(screen.getByRole('menuitem', { name: 'AI 写作助手' }));
+    const dialog = await screen.findByRole('dialog', { name: 'AI 写作助手' });
+    await user.click(within(dialog).getByRole('combobox', { name: '语气' }));
+
+    const listbox = screen.getByRole('listbox', { name: '语气' });
+    expect(within(listbox).getAllByRole('option').map((option) => option.textContent)).toEqual(['自然润色', '专业', '友好', '简洁', '写成邮件']);
+    const separator = within(listbox).getByRole('separator');
+    expect(separator.nextElementSibling).toHaveTextContent('写成邮件');
+
+    await user.click(within(listbox).getByRole('option', { name: '写成邮件' }));
+    expect(within(dialog).getByRole('combobox', { name: '语气' })).toHaveTextContent('写成邮件');
+    await user.click(within(dialog).getByRole('button', { name: '开始润色' }));
+
+    expect(rewrite).toHaveBeenCalledWith(expect.objectContaining({
+      tone: 'polish',
+      skill: { name: '写成邮件', prompt: '改写成一封简短的邮件' },
+    }));
+    const item = (await within(dialog).findByText('邮件版')).closest('[role="listitem"]') as HTMLElement;
+    expect(within(item).getByText('写成邮件')).toBeInTheDocument();
+  });
+
   it('shows three results in full and scrolls the list once a fourth arrives', async () => {
     const user = userEvent.setup();
     // Each result card is 100px tall with an 8px gap, stacked from y=0.

@@ -974,6 +974,7 @@ export function ChatComposer({
           initialText={value}
           model={models.includes(model) ? model : undefined}
           models={models}
+          skills={skills}
           rewrite={writingRewrite}
           onUse={(text) => {
             onChange(text);

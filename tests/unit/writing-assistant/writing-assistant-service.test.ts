@@ -37,6 +37,28 @@ function adapter(onInput = vi.fn(), responses = ['润色后的文字']): Provide
 }
 
 describe('WritingAssistantService', () => {
+  it('uses a chosen skill in place of the tone style', async () => {
+    const onInput = vi.fn();
+    const service = new WritingAssistantService({
+      listConfigs: vi.fn(async () => [config]),
+      hasGatewayPermission: vi.fn(async () => true),
+      getAdapter: vi.fn(() => adapter(onInput)),
+    });
+
+    await service.rewrite({
+      requestId: 'writing-skill',
+      text: '会议改到周三',
+      tone: 'polish',
+      skill: { name: '邮件', prompt: '改写成一封简短的邮件' },
+      locale: 'zh-CN',
+    });
+
+    const system = (onInput.mock.calls[0]![0] as ProviderChatInput).messages[0]!.content as string;
+    expect(system).toContain('改写成一封简短的邮件');
+    expect(system).toContain('"邮件"');
+    expect(system).not.toContain('Rewrite style:');
+  });
+
   it('rewrites text with the configured gateway without creating a conversation', async () => {
     const onInput = vi.fn();
     const provider = adapter(onInput);

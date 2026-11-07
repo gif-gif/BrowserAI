@@ -7,6 +7,8 @@ export interface SelectOption<T extends string> {
   label: string;
   /** Options sharing a group render under one heading, in first-seen order. */
   group?: string;
+  /** Draws a divider line above this option. */
+  separatorBefore?: boolean;
 }
 
 interface SelectProps<T extends string> {
@@ -231,6 +233,7 @@ export function Select<T extends string>({ value, options, label, ariaLabel, id,
             {search && !visibleOptions.length ? <p className="ui-select__empty">{search.noMatch}</p> : null}
             {visibleOptions.map((option, index) => (
               <Fragment key={option.value}>
+                {option.separatorBefore && index > 0 ? <div className="ui-select__separator" role="separator" /> : null}
                 {option.group && option.group !== visibleOptions[index - 1]?.group ? (
                   <div className="ui-select__group" role="presentation">{option.group}</div>
                 ) : null}

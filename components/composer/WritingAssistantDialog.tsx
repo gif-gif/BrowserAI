@@ -5,17 +5,21 @@ import { useI18n } from '../../shared/i18n/I18nProvider';
 import { localizeError } from '../../shared/i18n/locale';
 import type { AppLocale } from '../../shared/i18n/messages';
 import { WRITING_TONES, type WritingTone } from '../../shared/types/writing-assistant';
+import type { Skill, SkillInvocation } from '../../shared/types/skill';
 import { Select } from '../ui/Select';
 
 /** Mirrors the AI_WRITING_ASSIST contract limits. */
 const MAX_TEXT_LENGTH = 20_000;
 const MAX_INSTRUCTION_LENGTH = 1_000;
+const SKILL_STYLE_PREFIX = 'skill:';
 /** Results shown before the list starts scrolling. */
 const VISIBLE_RESULTS = 3;
 
 export interface WritingRequest {
   text: string;
   tone: WritingTone;
+  /** A user skill picked from the tone menu; its instructions replace the tone. */
+  skill?: SkillInvocation;
   instruction?: string;
   model?: string;
   locale: AppLocale;
@@ -28,6 +32,8 @@ interface WritingAssistantDialogProps {
   model?: string;
   /** Models the user can pick for this polish request. */
   models?: readonly string[];
+  /** User “/” skills offered under the tones in the style menu. */
+  skills?: readonly Skill[];
   /** Puts the polished text into the chat input. */
   onUse?: (text: string) => void;
   onClose: () => void;
@@ -39,6 +45,7 @@ interface WritingResult {
   id: string;
   text: string;
   tone: WritingTone;
+  skillName?: string;
   model?: string;
 }
 
@@ -50,7 +57,7 @@ function createDefaultRewriter(): WritingAssistantDialogProps['rewrite'] {
   if (typeof browser === 'undefined' || !browser.runtime) return undefined;
   const runtime = new RuntimeClient(browser.runtime);
   // The Gateway request runs in the background; this page only sends the text.
-  return async ({ text, tone, instruction, model, locale }) => {
+  return async ({ text, tone, skill, instruction, model, locale }) => {
     const result = await runtime.send<{ text: string }>({
       version: 1,
       requestId: createRequestId(),
@@ -58,6 +65,7 @@ function createDefaultRewriter(): WritingAssistantDialogProps['rewrite'] {
       text,
       tone,
       locale,
+      ...(skill ? { skill } : {}),
       ...(instruction ? { instruction } : {}),
       ...(model ? { model } : {}),
     });
@@ -65,12 +73,13 @@ function createDefaultRewriter(): WritingAssistantDialogProps['rewrite'] {
   };
 }
 
-export function WritingAssistantDialog({ initialText = '', model, models = [], onUse, onClose, rewrite }: WritingAssistantDialogProps) {
+export function WritingAssistantDialog({ initialText = '', model, models = [], skills = [], onUse, onClose, rewrite }: WritingAssistantDialogProps) {
   const { messages, locale } = useI18n();
   const titleId = useId();
   const textRef = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState(initialText.slice(0, MAX_TEXT_LENGTH));
-  const [tone, setTone] = useState<WritingTone>('polish');
+  // A tone id, or `skill:<id>` for a user skill listed under the tones.
+  const [style, setStyle] = useState<string>('polish');
   const [selectedModel, setSelectedModel] = useState(model && models.includes(model) ? model : '');
   const [instruction, setInstruction] = useState('');
   // Newest first; every polish is kept so the user can pick any of them.
@@ -88,7 +97,19 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
     friendly: messages.writingToneFriendly,
     concise: messages.writingToneConcise,
   };
-  const toneOptions = WRITING_TONES.map((value) => ({ value, label: toneLabels[value] }));
+  const styleOptions = [
+    ...WRITING_TONES.map((value) => ({ value: value as string, label: toneLabels[value] })),
+    ...skills.map((skill, index) => ({ value: `${SKILL_STYLE_PREFIX}${skill.id}`, label: skill.name, separatorBefore: index === 0 })),
+  ];
+  const selectedSkill = style.startsWith(SKILL_STYLE_PREFIX)
+    ? skills.find((skill) => `${SKILL_STYLE_PREFIX}${skill.id}` === style)
+    : undefined;
+  const tone: WritingTone = (WRITING_TONES as readonly string[]).includes(style) ? style as WritingTone : 'polish';
+
+  // A skill deleted elsewhere while the dialog is open falls back to the default tone.
+  useEffect(() => {
+    if (style.startsWith(SKILL_STYLE_PREFIX) && !selectedSkill) setStyle('polish');
+  }, [selectedSkill, style]);
   // '' keeps the request model-less so the background uses the Gateway default.
   const modelOptions = [{ value: '', label: messages.gatewayDefault }, ...models.map((value) => ({ value, label: value }))];
 
@@ -128,12 +149,13 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
       const polished = (await rewriter({
         text: text.trim(),
         tone,
+        ...(selectedSkill ? { skill: { name: selectedSkill.name, prompt: selectedSkill.prompt } } : {}),
         instruction: instruction.trim() || undefined,
         model: selectedModel || undefined,
         locale,
       })).trim();
       setResults((current) => [
-        { id: createRequestId(), text: polished, tone, ...(selectedModel ? { model: selectedModel } : {}) },
+        { id: createRequestId(), text: polished, tone, ...(selectedSkill ? { skillName: selectedSkill.name } : {}), ...(selectedModel ? { model: selectedModel } : {}) },
         ...current,
       ]);
       resultListRef.current?.scrollTo?.({ top: 0 });
@@ -181,7 +203,7 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
           />
         </div>
         <div className="writing-dialog__row">
-          <Select<WritingTone> ariaLabel={messages.writingAssistantTone} value={tone} options={toneOptions} disabled={generating} onChange={setTone} />
+          <Select ariaLabel={messages.writingAssistantTone} value={style} options={styleOptions} disabled={generating} onChange={setStyle} />
           <Select
             ariaLabel={messages.model}
             value={selectedModel}
@@ -228,7 +250,7 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
                 <div className="writing-dialog__result-header">
                   {/* The section is already labelled 润色结果; the header shows what produced it. */}
                   <div className="writing-dialog__result-meta">
-                    <span className="writing-dialog__result-tone">{toneLabels[item.tone]}</span>
+                    <span className="writing-dialog__result-tone">{item.skillName ?? toneLabels[item.tone]}</span>
                     {item.model ? <span className="writing-dialog__result-model" title={item.model}>{item.model}</span> : null}
                   </div>
                   <div className="writing-dialog__result-actions">
