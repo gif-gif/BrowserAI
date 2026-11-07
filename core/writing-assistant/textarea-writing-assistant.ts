@@ -553,6 +553,8 @@ export class TextareaWritingAssistant {
   private readonly copyButton: HTMLButtonElement;
   private readonly status: HTMLDivElement;
   private readonly hostObserver: MutationObserver;
+  /** Follows the bound textarea's size (drag handle, auto-grow) which fires no scroll or window resize. */
+  private readonly targetResizeObserver?: ResizeObserver;
   private messages: WritingAssistantMessages;
   private messagesRefreshRevision = 0;
   private enabled = true;
@@ -583,6 +585,8 @@ export class TextareaWritingAssistant {
     this.host.dataset.chromeAiWritingAssistant = 'true';
     this.host.style.cssText = 'all:initial;position:fixed;inset:0;z-index:2147483645;pointer-events:none;';
     this.hostObserver = new MutationObserver(() => this.ensureOpenPanelMounted());
+    const ResizeObserverImpl = (options.window as Window & { ResizeObserver?: typeof ResizeObserver }).ResizeObserver;
+    this.targetResizeObserver = ResizeObserverImpl ? new ResizeObserverImpl(() => this.reposition()) : undefined;
     this.shadow = this.host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
     style.textContent = STYLE;
@@ -890,6 +894,7 @@ export class TextareaWritingAssistant {
     this.options.window.removeEventListener('wheel', this.onAssistantWheel, true);
     this.options.window.removeEventListener('resize', this.reposition);
     this.hostObserver.disconnect();
+    this.targetResizeObserver?.disconnect();
     if (this.copyResetTimer !== undefined) this.options.window.clearTimeout(this.copyResetTimer);
     this.copyResetTimer = undefined;
     for (const timer of this.historyCopyResetTimers.values()) this.options.window.clearTimeout(timer);
@@ -916,7 +921,7 @@ export class TextareaWritingAssistant {
       this.generateButton.setAttribute('aria-label', this.messages.writingAssistantGenerate);
       this.close(false);
       this.hideLauncher();
-      this.target = undefined;
+      this.setTarget(undefined);
       this.sourceRange = undefined;
       this.sourceTextSnapshot = '';
       this.interactionContainer = undefined;
@@ -1267,8 +1272,15 @@ export class TextareaWritingAssistant {
     event.stopImmediatePropagation();
   };
 
-  private bindTarget(target: HTMLTextAreaElement): void {
+  private setTarget(target: HTMLTextAreaElement | undefined): void {
+    if (this.target === target) return;
+    this.targetResizeObserver?.disconnect();
     this.target = target;
+    if (target) this.targetResizeObserver?.observe(target);
+  }
+
+  private bindTarget(target: HTMLTextAreaElement): void {
+    this.setTarget(target);
     this.sourceRange = undefined;
     this.sourceTextSnapshot = '';
     const interactionContainer = findInteractionContainer(target, this.options.document);
@@ -1456,7 +1468,7 @@ export class TextareaWritingAssistant {
       // window; dismiss it and wait for the next textarea focus instead.
       this.close(false);
       this.launcher.style.display = 'none';
-      this.target = undefined;
+      this.setTarget(undefined);
       this.interactionContainer = undefined;
       return;
     }
@@ -1508,7 +1520,7 @@ export class TextareaWritingAssistant {
 
   private hideLauncher(): void {
     this.launcher.style.display = 'none';
-    if (!this.panelOpen) this.target = undefined;
+    if (!this.panelOpen) this.setTarget(undefined);
   }
 
   private getHostCoordinateSpace() {

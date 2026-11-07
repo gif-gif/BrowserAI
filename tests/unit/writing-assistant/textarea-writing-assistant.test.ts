@@ -181,6 +181,43 @@ describe('TextareaWritingAssistant', () => {
     }
   });
 
+  it('moves the launcher with the textarea when the textarea is resized', () => {
+    const observers: Array<{ callback: ResizeObserverCallback; targets: Set<Element> }> = [];
+    class FakeResizeObserver {
+      private readonly entry: { callback: ResizeObserverCallback; targets: Set<Element> };
+      constructor(callback: ResizeObserverCallback) {
+        this.entry = { callback, targets: new Set() };
+        observers.push(this.entry);
+      }
+      observe(target: Element) { this.entry.targets.add(target); }
+      unobserve(target: Element) { this.entry.targets.delete(target); }
+      disconnect() { this.entry.targets.clear(); }
+    }
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+    const assistant = new TextareaWritingAssistant({ document, window, messages: zhCN, requestRewrite: vi.fn() });
+    assistant.start();
+    const textarea = document.createElement('textarea');
+    let bottom = 240;
+    textarea.getBoundingClientRect = () => ({ ...rect(), bottom, height: bottom - 100 });
+    document.body.append(textarea);
+    textarea.focus();
+
+    try {
+      const { launcher } = shadowElements();
+      expect(launcher.style.top).toBe(`${240 - 24 - 5}px`);
+
+      bottom = 600;
+      const observer = observers.find(({ targets }) => targets.has(textarea));
+      expect(observer).toBeDefined();
+      observer!.callback([], {} as ResizeObserver);
+
+      expect(launcher.style.top).toBe(`${600 - 24 - 5}px`);
+    } finally {
+      assistant.stop();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('hides the launcher and closes the panel when the setting is disabled', () => {
     const assistant = new TextareaWritingAssistant({
       document,
