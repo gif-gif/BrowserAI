@@ -780,8 +780,18 @@ describe('ChatComposer', () => {
     expect(writeText).toHaveBeenCalledWith('第一版');
     expect(within(items[1]!).getByRole('button', { name: '已复制' })).toBeInTheDocument();
     expect(within(items[0]!).getByRole('button', { name: '复制' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('heading', { name: 'AI 写作助手' }).querySelector('img')).not.toBeNull();
 
-    await user.click(within(items[1]!).getByRole('button', { name: '填入输入框' }));
+    expect(within(dialog).queryByText('语境或要求（可选）')).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('textbox', { name: '语境或要求（可选）' }))
+      .toHaveAttribute('placeholder', expect.stringContaining('（可选）'));
+
+    await user.click(within(items[0]!).getByRole('button', { name: '删除这条润色结果' }));
+    expect(within(dialog).queryByText('第二版')).not.toBeInTheDocument();
+    const remaining = within(within(dialog).getByRole('list', { name: '润色结果' })).getAllByRole('listitem');
+    expect(remaining).toHaveLength(1);
+
+    await user.click(within(remaining[0]!).getByRole('button', { name: '填入输入框' }));
     expect(onChange).toHaveBeenCalledWith('第一版');
     expect(screen.queryByRole('dialog', { name: 'AI 写作助手' })).not.toBeInTheDocument();
   });

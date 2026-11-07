@@ -553,6 +553,10 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .writing-dialog__row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .writing-dialog__description { margin: -6px 0 0; color: var(--muted); font-size: 12px; }
 .writing-dialog__header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.writing-dialog__header h2 { display: flex; align-items: center; gap: 8px; }
+.writing-dialog__logo { width: 22px; height: 22px; flex: none; }
+/* The logo is a black glyph on transparency; flip it to white on dark surfaces. */
+:root[data-appearance="dark"] .writing-dialog__logo { filter: invert(1); }
 .writing-dialog__close { width: 32px; height: 32px; display: grid; place-items: center; margin: -6px -8px -6px 0; padding: 0; border: 0; border-radius: 50%; color: var(--muted-strong); background: transparent; }
 .writing-dialog__close:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
 .writing-dialog__close svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
@@ -576,6 +580,9 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .writing-dialog__result-actions button { min-height: 26px; padding: 0 8px; border: 0; border-radius: 13px; color: var(--blue); background: transparent; font-size: 12px; font-weight: 600; }
 .writing-dialog__result-actions button:hover:not(:disabled) { background: color-mix(in srgb, var(--blue) 12%, transparent); }
 .writing-dialog__result-actions button:disabled { opacity: .5; }
+.writing-dialog__result-actions .writing-dialog__delete { width: 26px; display: grid; place-items: center; padding: 0; color: var(--muted-strong); }
+.writing-dialog__result-actions .writing-dialog__delete:hover:not(:disabled) { color: var(--danger); background: var(--danger-soft); }
+.writing-dialog__delete svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .writing-dialog__result p { margin: 0; color: var(--ink); font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 
 .streaming-indicator__dots { display: inline-flex; align-items: center; gap: 3px; }

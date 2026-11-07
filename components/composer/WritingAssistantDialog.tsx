@@ -67,7 +67,6 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
   const { messages, locale } = useI18n();
   const titleId = useId();
   const textId = useId();
-  const instructionId = useId();
   const textRef = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState(initialText.slice(0, MAX_TEXT_LENGTH));
   const [tone, setTone] = useState<WritingTone>('polish');
@@ -144,7 +143,10 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
       <div className="skill-dialog-scrim" aria-hidden="true" onClick={onClose} />
       <form className="skill-dialog writing-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} onSubmit={(event) => { void submit(event); }}>
         <div className="writing-dialog__header">
-          <h2 id={titleId}>{messages.writingAssistantTitle}</h2>
+          <h2 id={titleId}>
+            <img className="writing-dialog__logo" src={new URL('/icon/128.png', window.location.href).href} alt="" aria-hidden="true" />
+            {messages.writingAssistantTitle}
+          </h2>
           <button type="button" className="writing-dialog__close" aria-label={messages.writingAssistantClose} onClick={onClose}>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
           </button>
@@ -176,14 +178,13 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
           />
         </div>
         <div className="skill-dialog__field">
-          <label htmlFor={instructionId}>{messages.writingAssistantContext}</label>
-          {/* The instruction box doubles as the composer: Enter or the arrow starts a polish. */}
+          {/* The context box doubles as the composer: Enter or the arrow starts a polish. */}
           <div className="writing-dialog__composer">
             <input
-              id={instructionId}
               value={instruction}
               maxLength={MAX_INSTRUCTION_LENGTH}
-              placeholder={messages.writingAssistantContextPlaceholder}
+              aria-label={messages.writingAssistantContext}
+              placeholder={messages.writingAssistantComposerPlaceholder}
               readOnly={generating}
               onChange={(event) => setInstruction(event.target.value)}
             />
@@ -220,6 +221,16 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
                         {messages.writingAssistantUseInComposer}
                       </button>
                     ) : null}
+                    <button
+                      type="button"
+                      className="writing-dialog__delete"
+                      aria-label={messages.writingAssistantDeleteResult}
+                      title={messages.writingAssistantDeleteResult}
+                      disabled={generating}
+                      onClick={() => setResults((current) => current.filter(({ id }) => id !== item.id))}
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 11v6M14 11v6M9 7l1-2h4l1 2M7 7l1 12h8l1-12" /></svg>
+                    </button>
                   </div>
                 </div>
                 <p>{item.text}</p>
