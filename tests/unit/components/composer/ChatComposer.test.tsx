@@ -785,6 +785,9 @@ describe('ChatComposer', () => {
     expect(within(dialog).queryByText('原文')).not.toBeInTheDocument();
     expect(within(items[0]!).queryByText('润色结果')).not.toBeInTheDocument();
     expect(within(items[0]!).getByText('自然润色')).toBeInTheDocument();
+    const actionNames = within(items[0]!).getAllByRole('button').map((button) => button.getAttribute('aria-label') ?? button.textContent);
+    expect(actionNames).toEqual(['插入', '复制', '删除这条润色结果']);
+    expect(within(dialog).queryByText('正在润色…')).not.toBeInTheDocument();
 
     expect(within(dialog).queryByText('语境或要求（可选）')).not.toBeInTheDocument();
     expect(within(dialog).getByRole('textbox', { name: '语境或要求（可选）' }))

@@ -199,7 +199,6 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
             </button>
           </div>
         </div>
-        {generating ? <p className="skill-dialog__status" role="status">{messages.writingAssistantGenerating}</p> : null}
         {error ? <p className="skill-dialog__error" role="alert">{error}</p> : null}
         {results.length ? (
           <div ref={resultListRef} className="writing-dialog__results" role="list" aria-label={messages.writingAssistantResult} aria-live="polite">
@@ -212,6 +211,11 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
                     {item.model ? <span className="writing-dialog__result-model" title={item.model}>{item.model}</span> : null}
                   </div>
                   <div className="writing-dialog__result-actions">
+                    {onUse ? (
+                      <button type="button" className="writing-dialog__insert" disabled={generating} onClick={() => { onUse(item.text); onClose(); }}>
+                        {messages.writingAssistantInsert}
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       className="writing-dialog__icon-action"
@@ -225,11 +229,6 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
                         ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 12 4 4 8-8" /></svg>
                         : <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="10" height="10" rx="2" /><path d="M15 9V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" /></svg>}
                     </button>
-                    {onUse ? (
-                      <button type="button" className="writing-dialog__insert" disabled={generating} onClick={() => { onUse(item.text); onClose(); }}>
-                        {messages.writingAssistantInsert}
-                      </button>
-                    ) : null}
                     <button
                       type="button"
                       className="writing-dialog__icon-action writing-dialog__delete"
