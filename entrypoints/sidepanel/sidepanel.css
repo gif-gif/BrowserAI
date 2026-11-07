@@ -574,15 +574,20 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .writing-dialog__results { display: grid; gap: 8px; max-height: 320px; overflow-y: auto; overscroll-behavior: contain; }
 .writing-dialog__result { display: grid; gap: 6px; padding: 10px 12px 12px; border-radius: 12px; background: var(--blue-soft); }
 .writing-dialog__result-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
-.writing-dialog__result h3 { display: flex; align-items: baseline; gap: 6px; min-width: 0; margin: 0; color: var(--muted-strong); font-size: 12px; font-weight: 600; }
-.writing-dialog__result-meta { overflow: hidden; color: var(--muted); font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
-.writing-dialog__result-actions { display: flex; flex: none; gap: 2px; }
-.writing-dialog__result-actions button { min-height: 26px; padding: 0 8px; border: 0; border-radius: 13px; color: var(--blue); background: transparent; font-size: 12px; font-weight: 600; }
-.writing-dialog__result-actions button:hover:not(:disabled) { background: color-mix(in srgb, var(--blue) 12%, transparent); }
+/* Tone as a small tag and the model as one truncated line, so neither wraps. */
+.writing-dialog__result-meta { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1 1 auto; font-size: 12px; line-height: 18px; }
+.writing-dialog__result-tone { flex: none; padding: 1px 8px; border-radius: 999px; color: var(--blue); background: color-mix(in srgb, var(--blue) 12%, transparent); font-weight: 600; white-space: nowrap; }
+.writing-dialog__result-model { min-width: 0; overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
+.writing-dialog__result-actions { display: flex; flex: none; align-items: center; gap: 2px; }
+.writing-dialog__result-actions button { min-height: 28px; border: 0; color: var(--blue); background: transparent; font-weight: 600; }
 .writing-dialog__result-actions button:disabled { opacity: .5; }
-.writing-dialog__result-actions .writing-dialog__delete { width: 26px; display: grid; place-items: center; padding: 0; color: var(--muted-strong); }
+.writing-dialog__result-actions .writing-dialog__insert { padding: 0 10px; border-radius: 14px; font-size: 12px; white-space: nowrap; }
+.writing-dialog__result-actions .writing-dialog__insert:hover:not(:disabled) { background: color-mix(in srgb, var(--blue) 12%, transparent); }
+.writing-dialog__result-actions .writing-dialog__icon-action { width: 28px; display: grid; place-items: center; padding: 0; border-radius: 50%; color: var(--muted-strong); }
+.writing-dialog__result-actions .writing-dialog__icon-action:hover:not(:disabled) { color: var(--ink); background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.writing-dialog__result-actions .writing-dialog__icon-action[data-copied] { color: var(--blue); }
 .writing-dialog__result-actions .writing-dialog__delete:hover:not(:disabled) { color: var(--danger); background: var(--danger-soft); }
-.writing-dialog__delete svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.writing-dialog__icon-action svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .writing-dialog__result p { margin: 0; color: var(--ink); font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 
 .streaming-indicator__dots { display: inline-flex; align-items: center; gap: 3px; }

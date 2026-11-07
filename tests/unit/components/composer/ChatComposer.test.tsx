@@ -746,7 +746,7 @@ describe('ChatComposer', () => {
       locale: 'zh-CN',
     });
 
-    await user.click(within(dialog).getByRole('button', { name: '填入输入框' }));
+    await user.click(within(dialog).getByRole('button', { name: '插入' }));
     expect(onChange).toHaveBeenCalledWith('润色后的文字');
     expect(screen.queryByRole('dialog', { name: 'AI 写作助手' })).not.toBeInTheDocument();
   });
@@ -781,6 +781,10 @@ describe('ChatComposer', () => {
     expect(within(items[1]!).getByRole('button', { name: '已复制' })).toBeInTheDocument();
     expect(within(items[0]!).getByRole('button', { name: '复制' })).toBeInTheDocument();
     expect(within(dialog).getByRole('heading', { name: 'AI 写作助手' }).querySelector('img')).not.toBeNull();
+    // No visible 原文 or 润色结果 headings; the tone tag replaces the result title.
+    expect(within(dialog).queryByText('原文')).not.toBeInTheDocument();
+    expect(within(items[0]!).queryByText('润色结果')).not.toBeInTheDocument();
+    expect(within(items[0]!).getByText('自然润色')).toBeInTheDocument();
 
     expect(within(dialog).queryByText('语境或要求（可选）')).not.toBeInTheDocument();
     expect(within(dialog).getByRole('textbox', { name: '语境或要求（可选）' }))
@@ -791,7 +795,7 @@ describe('ChatComposer', () => {
     const remaining = within(within(dialog).getByRole('list', { name: '润色结果' })).getAllByRole('listitem');
     expect(remaining).toHaveLength(1);
 
-    await user.click(within(remaining[0]!).getByRole('button', { name: '填入输入框' }));
+    await user.click(within(remaining[0]!).getByRole('button', { name: '插入' }));
     expect(onChange).toHaveBeenCalledWith('第一版');
     expect(screen.queryByRole('dialog', { name: 'AI 写作助手' })).not.toBeInTheDocument();
   });

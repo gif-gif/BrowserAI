@@ -66,7 +66,6 @@ function createDefaultRewriter(): WritingAssistantDialogProps['rewrite'] {
 export function WritingAssistantDialog({ initialText = '', model, models = [], onUse, onClose, rewrite }: WritingAssistantDialogProps) {
   const { messages, locale } = useI18n();
   const titleId = useId();
-  const textId = useId();
   const textRef = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState(initialText.slice(0, MAX_TEXT_LENGTH));
   const [tone, setTone] = useState<WritingTone>('polish');
@@ -153,10 +152,9 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
         </div>
         <p className="writing-dialog__description">{messages.writingAssistantDescription}</p>
         <div className="skill-dialog__field">
-          <label htmlFor={textId}>{messages.writingAssistantOriginal}</label>
           <textarea
-            id={textId}
             ref={textRef}
+            aria-label={messages.writingAssistantOriginal}
             className="writing-dialog__input"
             value={text}
             rows={3}
@@ -208,22 +206,33 @@ export function WritingAssistantDialog({ initialText = '', model, models = [], o
             {results.map((item) => (
               <section key={item.id} className="writing-dialog__result" role="listitem" aria-label={messages.writingAssistantResult}>
                 <div className="writing-dialog__result-header">
-                  <h3>
-                    {messages.writingAssistantResult}
-                    <span className="writing-dialog__result-meta">{toneLabels[item.tone]}{item.model ? ` · ${item.model}` : ''}</span>
-                  </h3>
+                  {/* The section is already labelled 润色结果; the header shows what produced it. */}
+                  <div className="writing-dialog__result-meta">
+                    <span className="writing-dialog__result-tone">{toneLabels[item.tone]}</span>
+                    {item.model ? <span className="writing-dialog__result-model" title={item.model}>{item.model}</span> : null}
+                  </div>
                   <div className="writing-dialog__result-actions">
-                    <button type="button" disabled={generating} onClick={() => { void copyResult(item); }}>
-                      {copiedId === item.id ? messages.copied : messages.copy}
+                    <button
+                      type="button"
+                      className="writing-dialog__icon-action"
+                      aria-label={copiedId === item.id ? messages.copied : messages.copy}
+                      title={copiedId === item.id ? messages.copied : messages.copy}
+                      data-copied={copiedId === item.id || undefined}
+                      disabled={generating}
+                      onClick={() => { void copyResult(item); }}
+                    >
+                      {copiedId === item.id
+                        ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 12 4 4 8-8" /></svg>
+                        : <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="10" height="10" rx="2" /><path d="M15 9V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" /></svg>}
                     </button>
                     {onUse ? (
-                      <button type="button" disabled={generating} onClick={() => { onUse(item.text); onClose(); }}>
-                        {messages.writingAssistantUseInComposer}
+                      <button type="button" className="writing-dialog__insert" disabled={generating} onClick={() => { onUse(item.text); onClose(); }}>
+                        {messages.writingAssistantInsert}
                       </button>
                     ) : null}
                     <button
                       type="button"
-                      className="writing-dialog__delete"
+                      className="writing-dialog__icon-action writing-dialog__delete"
                       aria-label={messages.writingAssistantDeleteResult}
                       title={messages.writingAssistantDeleteResult}
                       disabled={generating}
