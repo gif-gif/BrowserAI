@@ -271,6 +271,13 @@ export default defineContentScript({
         requestId: globalThis.crypto?.randomUUID?.() ?? `writing-skills-${Date.now()}`,
         type: 'GET_WRITING_ASSISTANT_SKILLS',
       })).skills ?? [],
+      openSkillSettings: () => {
+        void runtime.send({
+          version: 1,
+          requestId: globalThis.crypto?.randomUUID?.() ?? `writing-skill-settings-${Date.now()}`,
+          type: 'OPEN_SKILL_SETTINGS',
+        }).catch(() => undefined);
+      },
       requestRewrite: async (request) => {
         try {
           // Read the shared preference immediately before every request so the

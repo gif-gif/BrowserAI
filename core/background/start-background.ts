@@ -24,6 +24,7 @@ import type { TabContextSummary } from '../../shared/types/tab-mention';
 import type { ExtractedPageContext } from '../../shared/types/context';
 import { supportsFloatingChat } from '../../shared/types/floating-chat';
 import { normalizeSkills } from '../../shared/skills/skill-store';
+import { SKILL_SETTINGS_ANCHOR } from '../../components/settings/settings-sections';
 
 export type { BackgroundBrowserApi } from './browser-api';
 
@@ -396,6 +397,12 @@ function createRuntimeHandlers(
       skills: normalizeSkills(await services.storage.get<unknown>(STORAGE_KEYS.skills))
         .map(({ id, name, prompt }) => ({ id, name, prompt })),
     }),
+    // 管理技能 in the page writing assistant; content scripts cannot open extension pages.
+    OPEN_SKILL_SETTINGS: async () => {
+      if (!api.tabs.create || !api.runtime.getURL) throw new AppError('INVALID_MESSAGE', '无法打开设置页');
+      await api.tabs.create({ url: api.runtime.getURL(`/options.html#${SKILL_SETTINGS_ANCHOR}`) });
+      return { opened: true };
+    },
     GET_WRITING_ASSISTANT_PREFERENCES: async () => {
       const [languagePreference, themePreference, writingAssistantEnabled, appearancePreference] = await Promise.all([
         services.storage.get<unknown>(STORAGE_KEYS.languagePreference),

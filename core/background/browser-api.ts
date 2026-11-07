@@ -30,6 +30,7 @@ export interface BackgroundBrowserApi {
     onMessage: BackgroundEvent<(message: unknown, sender: BackgroundMessageSender) => unknown>;
     onConnect: BackgroundEvent<(port: BackgroundPort) => void>;
     onInstalled?: BackgroundEvent<(details: { reason: string }) => void>;
+    getURL?(path: string): string;
   };
   storage: {
     local: {
@@ -42,6 +43,7 @@ export interface BackgroundBrowserApi {
   tabs: {
     query(query: { active?: boolean; currentWindow?: boolean }): Promise<BackgroundTab[]>;
     get?(tabId: number): Promise<BackgroundTab>;
+    create?(properties: { url: string }): Promise<BackgroundTab>;
     sendMessage(tabId: number, message: ContentCommand): Promise<unknown>;
     onRemoved: BackgroundEvent<(tabId: number) => void>;
     onUpdated: BackgroundEvent<(tabId: number, changeInfo: { url?: string; status?: string }, tab: BackgroundTab) => void>;

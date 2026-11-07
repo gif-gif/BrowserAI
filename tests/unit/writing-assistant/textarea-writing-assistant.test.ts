@@ -1209,6 +1209,43 @@ describe('TextareaWritingAssistant', () => {
     }
   });
 
+  it('shows 还没有技能 and 管理技能 under the tones when there are no skills', async () => {
+    const openSkillSettings = vi.fn();
+    const assistant = new TextareaWritingAssistant({
+      document,
+      window,
+      messages: zhCN,
+      requestRewrite: vi.fn(),
+      loadSkills: vi.fn(async () => []),
+      openSkillSettings,
+    });
+    assistant.start();
+    const textarea = document.createElement('textarea');
+    textarea.getBoundingClientRect = rect;
+    document.body.append(textarea);
+    textarea.focus();
+
+    try {
+      const elements = shadowElements();
+      elements.launcher.click();
+      await Promise.resolve();
+      elements.toneTrigger.click();
+      const popover = elements.tonePopover;
+      expect(popover.querySelectorAll('.tone-option')).toHaveLength(4);
+      expect(popover.querySelector('.tone-note')?.textContent).toBe('还没有技能');
+      const manage = popover.querySelector<HTMLButtonElement>('.tone-action')!;
+      expect(manage.textContent).toBe('管理技能');
+      expect(popover.lastElementChild?.classList.contains('tone-footer')).toBe(true);
+
+      manage.click();
+      expect(openSkillSettings).toHaveBeenCalledOnce();
+      expect(popover.dataset.open).toBeUndefined();
+      expect(elements.toneTrigger.textContent).toContain('自然润色');
+    } finally {
+      assistant.stop();
+    }
+  });
+
   it('lists the user skills under the tones and polishes with the chosen skill', async () => {
     const requestRewrite = vi.fn(async () => ({ text: '邮件版' }));
     const assistant = new TextareaWritingAssistant({
@@ -1231,7 +1268,8 @@ describe('TextareaWritingAssistant', () => {
       elements.launcher.click();
       await vi.waitFor(() => expect(elements.shadow.querySelectorAll('.tone-option')).toHaveLength(5));
       const popover = elements.tonePopover;
-      expect([...popover.children].map((child) => child.getAttribute('role'))).toEqual(['option', 'option', 'option', 'option', 'separator', 'option']);
+      expect([...popover.children].map((child) => child.getAttribute('role') ?? child.className)).toEqual(['option', 'option', 'option', 'option', 'separator', 'option']);
+      expect(popover.querySelector('.tone-footer')).toBeNull();
 
       elements.toneTrigger.click();
       popover.querySelector<HTMLElement>('[data-tone="skill:s1"]')!.click();

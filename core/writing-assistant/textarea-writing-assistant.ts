@@ -28,6 +28,8 @@ type WritingAssistantMessages = Pick<AppMessages,
   | 'writingAssistantEmpty'
   | 'writingAssistantTargetMissing'
   | 'writingAssistantDeleteResult'
+  | 'noSkills'
+  | 'manageSkills'
   | 'writingAssistantExpandResult'
   | 'writingAssistantCollapseResult'
   | 'model'
@@ -85,6 +87,8 @@ interface TextareaWritingAssistantOptions {
   loadModels?(): Promise<{ model: string; models: string[] }>;
   /** The user's saved “/” skills, read through the background each time the assistant opens. */
   loadSkills?(): Promise<WritingAssistantSkill[]>;
+  /** Opens skill management in the settings page; adds 管理技能 under the style menu. */
+  openSkillSettings?(): void;
   requestRewrite(request: RewriteRequest): Promise<WritingAssistResult>;
   createRequestId?: () => string;
 }
@@ -338,6 +342,11 @@ const STYLE = `
   .tone-check { flex: 0 0 auto; display: inline-flex; color: var(--ai-accent); opacity: 0; }
   .tone-option[aria-selected="true"] .tone-check { opacity: 1; }
   .tone-separator { height: 1px; margin: 4px 6px; background: var(--ai-border); }
+  .tone-footer { display: grid; gap: 1px; }
+  .tone-note { margin: 0; padding: 6px 8px; color: var(--ai-text-secondary); font-size: 12px; }
+  .tone-action { min-height: 34px; display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 8px; appearance: none; border: 0; border-radius: 8px; color: var(--ai-text); background: transparent; font-size: 13px; text-align: left; cursor: pointer; }
+  .tone-action:hover, .tone-action:focus-visible { background: var(--ai-surface-hover); outline: none; }
+  .tone-action svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   /* Context input and the polish arrow share one rounded box, like the chat composer. */
   .composer {
     display: flex;
@@ -519,6 +528,7 @@ export class TextareaWritingAssistant {
   private readonly tonePopover: HTMLDivElement;
   private readonly toneOptions = new Map<string, HTMLDivElement>();
   private styleOptions: StyleOption[] = [];
+  private readonly toneFooter: HTMLDivElement;
   private skills: WritingAssistantSkill[] = [];
   private skillsRevision = 0;
   private readonly toneIcons: Record<WritingTone, string> = {
@@ -705,6 +715,8 @@ export class TextareaWritingAssistant {
     this.tonePopover.setAttribute('aria-labelledby', this.toneLabel.id);
     tonePickerWrap.append(this.toneTrigger, this.tonePopover);
     toneSection.append(this.toneLabel, this.toneSelect, tonePickerWrap);
+    this.toneFooter = document.createElement('div');
+    this.toneFooter.className = 'tone-footer';
     this.renderToneOptions();
 
     const feedback = document.createElement('div');
@@ -1182,11 +1194,51 @@ export class TextareaWritingAssistant {
         this.toneOptions.set(option.key, item);
         this.tonePopover.append(item);
       }
-      if (this.isTonePickerOpen()) this.placePopover(this.tonePopover, this.toneTrigger, 'start', 180);
     }
+    this.renderToneFooter();
+    if (this.isTonePickerOpen()) this.placePopover(this.tonePopover, this.toneTrigger, 'start', 180);
     // A skill deleted elsewhere falls back to the default tone.
     this.toneSelect.value = next.some(({ key }) => key === previous) ? previous : 'polish';
     this.syncTonePicker();
+  }
+
+  /** 还没有技能 and 管理技能 under the options, like the side panel's style menu. */
+  private renderToneFooter(): void {
+    const { document } = this.options;
+    const open = this.options.openSkillSettings;
+    this.toneFooter.replaceChildren();
+    if (!open) {
+      this.toneFooter.remove();
+      return;
+    }
+    const separator = () => {
+      const line = document.createElement('div');
+      line.className = 'tone-separator';
+      line.setAttribute('role', 'separator');
+      return line;
+    };
+    this.toneFooter.append(separator());
+    if (!this.skills.length) {
+      const note = document.createElement('p');
+      note.className = 'tone-note';
+      note.textContent = this.messages.noSkills;
+      this.toneFooter.append(note, separator());
+    }
+    const manage = document.createElement('button');
+    manage.type = 'button';
+    manage.className = 'tone-action';
+    manage.append(createSvg(document, '<path d="M13 5h6v6M19 5l-8 8"/><path d="M17 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h4"/>'));
+    const label = document.createElement('span');
+    label.textContent = this.messages.manageSkills;
+    manage.append(label);
+    manage.addEventListener('mousedown', (event) => event.preventDefault());
+    manage.addEventListener('click', () => {
+      this.closeTonePicker(false);
+      open();
+    });
+    this.toneFooter.append(manage);
+    // Appending moves the footer after any rebuilt options.
+    this.tonePopover.append(this.toneFooter);
   }
 
   private selectedStyleOption(): StyleOption {
